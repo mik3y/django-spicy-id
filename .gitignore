@@ -1,0 +1,9 @@
+__pycache__
+venv
+.coverage*
+.tox
+*.sqlite
+build/
+dist/
+.vscode/
+.DS_Store
