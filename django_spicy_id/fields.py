@@ -3,7 +3,8 @@ import random
 import re
 
 from django.db import models
-from django.utils import baseconv
+
+from . import baseconv
 
 
 class BaseSpicyAutoField(models.BigAutoField):
