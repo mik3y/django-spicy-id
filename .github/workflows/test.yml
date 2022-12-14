@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.8, 3.9, 3.10, 3.11]
+        python-version: [3.8, 3.9, "3.10", 3.11]
         mysql-image:
           - mysql:5.7
           - mysql:latest
@@ -57,7 +57,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.8, 3.9, 3.10, 3.11]
+        python-version: [3.8, 3.9, "3.10", 3.11]
         postgres-image:
           - postgres:9.5
           - postgres:latest
@@ -100,7 +100,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: [3.8, 3.9, 3.10, 3.11]
+        python-version: [3.8, 3.9, "3.10", 3.11]
     steps:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
