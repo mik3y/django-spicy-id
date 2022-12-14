@@ -4,9 +4,8 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
 
 **Status:** Experimental! No warranty. See `LICENSE.txt`.
 
-<!-- ![Lint status](https://github.com/mik3y/django-spicy-id/actions/workflows/lint.yml/badge.svg)
 ![Test status](https://github.com/mik3y/django-spicy-id/actions/workflows/test.yml/badge.svg)
- -->
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
@@ -126,12 +125,12 @@ Take special note of the last two errors: Regardless of field configuration the 
 This package supports and is tested against the latest patch versions of:
 
 - **Python:** 3.8, 3.9, 3.10, 3.11
-- **Django:** 2.2, 3.0, 3.1, 4.0
+- **Django:** 2.2, 3.1, 4.1
 - **MySQL:** 5.7, 8.0
 - **PostgreSQL:** 9.5, 10, 11, 12
 - **SQLite:** 3.9.0+
 
-All database backends are tested with the latest versions of their drivers. SQLite is also tested on GitHub Actions' latest macOS and Windows virtual environments.
+All database backends are tested with the latest versions of their drivers. SQLite is also tested on GitHub Actions' latest macOS virtual environment.
 
 ### Instructions
 
