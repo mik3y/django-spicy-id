@@ -119,25 +119,25 @@ class TestFields(TestCase):
         boundary = model.objects.create(id=2**63 - 1)
         self.assertEqual("ex_7fffffffffffffff", boundary.id)
 
-    @mock.patch("random.randrange")
-    def test_base62_model_with_randomize(self, mock_randrange):
+    @mock.patch("secrets.randbelow")
+    def test_base62_model_with_randomize(self, mock_secrets_randbelow):
         model = models.Base62Model_WithRandomize
 
-        mock_randrange.return_value = 123456789
+        mock_secrets_randbelow.return_value = 123456788
         o = model.objects.create()
         self.assertEqual("ex_8M0kX", o.id)
-        mock_randrange.assert_called_with(1, 2**63 - 1)
+        mock_secrets_randbelow.assert_called_with(2**63 - 2)
         o = model.objects.create(id=7)
         self.assertEqual("ex_7", o.id)
 
-    @mock.patch("random.randrange")
-    def test_hex_model_with_randomize(self, mock_randrange):
+    @mock.patch("secrets.randbelow")
+    def test_hex_model_with_randomize(self, mock_secrets_randbelow):
         model = models.HexModel_WithRandomize
 
-        mock_randrange.return_value = 123456789
+        mock_secrets_randbelow.return_value = 123456788
         o = model.objects.create()
         self.assertEqual("ex_75bcd15", o.id)
-        mock_randrange.assert_called_with(1, 2**63 - 1)
+        mock_secrets_randbelow.assert_called_with(2**63 - 2)
         o = model.objects.create(id=7)
         self.assertEqual("ex_7", o.id)
 

@@ -122,12 +122,16 @@ The following parameters are required at declaration:
 
 In addition to all parameters you can provide a normal `AutoField`, each of the field types above supports the following additional optional paramters:
 
+- **`encoding`**: What numeric encoding scheme to use. One of `fields.ENCODING_BASE_62` (default), `fields.ENCODING_BASE_58`, or `fields.ENCODING_HEX`.
 - **`sep`**: The separator character. Defaults to `_`. Can be any string.
-- **`encoding`**: What numeric encoding scheme to use. One of `fields.ENCODING_BASE_62`, `fields.ENCODING_BASE_58`, or `fields.ENCODING_HEX`.
 - **`pad`**: Whether the encoded portion of the id should be zero-padded so that all values are the same string length. Either `False` (default) or `True`.
   - Example without padding: `user_8M0kX`
   - Example with padding: `user_0000008M0kX`
-- **`randomize`**: If `True`, the default value for creates will be chosen from `random.randrange()`. If `False` (the default), works just like a normal `AutoField` i.e. the default value comes from the database upon `INSERT`.
+- **`randomize`**: If `True`, the default value of a new record will be generated randomly using `secrets.randbelow()`. If `False` (the default), works just like a normal `AutoField` i.e. the default value comes from the database upon `INSERT`.
+  - When `randomize` is set, an error will be thrown if `default` is also set, since `randomize` is essentially a special and built-in `default` function.
+  - If you use this feature, be aware of its hazards: 
+      - The generated ID may conflict with an existing row, with probability [determined by the birthday problem](https://en.wikipedia.org/wiki/Birthday_problem#Probability_table) (i.e. the column size and the size of the existing dataset).
+      - A conflict can also arise if two processes generate the same value for `secrets.randbelow()` (i.e. if system entropy is identical or misconfigured for some reason),
 
 ### Errors
 

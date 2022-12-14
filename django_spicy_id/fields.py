@@ -1,6 +1,6 @@
 import math
-import random
 import re
+import secrets
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
@@ -92,6 +92,10 @@ class BaseSpicyAutoField(models.BigAutoField):
 
         return f"{self.prefix}{self.sep}{encoded}"
 
+    def _generate_random_default_value(self):
+        """Generates a random value on the range [1, self.max_value)."""
+        return 1 + secrets.randbelow(self.max_value - 1)
+
     def from_db_value(self, value, expression, connection):
         if value is None:
             return None
@@ -99,7 +103,7 @@ class BaseSpicyAutoField(models.BigAutoField):
 
     def get_prep_value(self, value):
         if value is None and self.randomize:
-            value = random.randrange(1, self.max_value)
+            value = self._generate_random_default_value()
             return value
         if value is None or isinstance(value, int):
             return super().get_prep_value(value)
@@ -125,8 +129,7 @@ class BaseSpicyAutoField(models.BigAutoField):
 
     def get_default(self):
         if self.randomize:
-            value = random.randrange(1, self.max_value)
-            return value
+            return self._generate_random_default_value()
         return super().get_default()
 
     def deconstruct(self):
