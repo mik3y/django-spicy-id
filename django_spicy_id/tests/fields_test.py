@@ -35,6 +35,11 @@ class TestFields(TestCase):
         with self.assertRaisesMessage(ImproperlyConfigured, "sep must be ascii"):
             SpicyAutoField(prefix="ex", sep="frozen🍌")
 
+        with self.assertRaisesMessage(
+            ImproperlyConfigured, "cannot provide both `randomize` and `default`"
+        ):
+            SpicyAutoField(prefix="ex", default=123, randomize=True)
+
     def test_model_with_defaults(self):
         model = models.Model_WithDefaults
 

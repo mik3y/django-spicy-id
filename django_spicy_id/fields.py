@@ -67,6 +67,8 @@ class BaseSpicyAutoField(models.BigAutoField):
             raise ImproperlyConfigured(
                 "prefix: only ascii numbers and letters allowed, must start with a letter"
             )
+        if randomize and kwargs.get("default"):
+            raise ImproperlyConfigured("cannot provide both `randomize` and `default`")
 
         self.prefix = prefix
         self.sep = sep
