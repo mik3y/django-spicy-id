@@ -2,17 +2,48 @@ import math
 import random
 import re
 
+from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 
+from django_spicy_id.errors import MalformedSpicyIdError
+
 from . import baseconv
+
+ENCODING_HEX = "hex"
+ENCODING_BASE_58 = "b58"
+ENCODING_BASE_62 = "b62"
+
+CODECS_BY_ENCODING = {
+    ENCODING_HEX: baseconv.base16,
+    ENCODING_BASE_58: baseconv.base58,
+    ENCODING_BASE_62: baseconv.base62,
+}
+
+LEGAL_PREFIX_RE = re.compile("^[a-zA-Z][0-9a-z-A-Z]?$")
+
+
+def get_regex(preamble, codec, pad, char_len):
+    """Builder function
+
+    If `pad` is True, the regex allows leading padding characters (a
+    zero in most codecs). Else, these are not allowed.
+    """
+    digits = codec.digits
+    digits_without_pad_char = digits[1:]
+    escaped_preamble = re.escape(preamble)
+    if not pad:
+        trailer_len = char_len - 1
+        return re.compile(
+            f"^({escaped_preamble})([{digits_without_pad_char}][{digits}]{{,{trailer_len}}})$"
+        )
+    else:
+        return re.compile(f"^({escaped_preamble})([{digits}]{{{char_len}}})$")
 
 
 class BaseSpicyAutoField(models.BigAutoField):
     """An auto field that is rendered as a prefixed string."""
 
     NUM_BITS = None  # Must be defined in subclasses.
-    ENCODING_HEX = "hex"
-    ENCODING_BASE_62 = "b62"
 
     def __init__(
         self,
@@ -24,35 +55,38 @@ class BaseSpicyAutoField(models.BigAutoField):
         *args,
         **kwargs,
     ):
+        if encoding not in CODECS_BY_ENCODING:
+            raise ImproperlyConfigured(f'unknown encoding "{encoding}"')
+        if not isinstance(prefix, str):
+            raise ImproperlyConfigured("prefix must be a string")
+        if not isinstance(sep, str):
+            raise ImproperlyConfigured("sep must be a string")
+        if not sep.isascii():
+            raise ImproperlyConfigured("sep must be ascii")
+        if not LEGAL_PREFIX_RE.match(prefix):
+            raise ImproperlyConfigured(
+                "prefix: only ascii numbers and letters allowed, must start with a letter"
+            )
+
         self.prefix = prefix
         self.sep = sep
-        self.encoding = encoding
         self.randomize = randomize
         self.pad = pad
-        self.max_value = 2 ** (self.NUM_BITS - 1) - 1
 
-        if self.encoding == self.ENCODING_HEX:
-            self.max_characters = math.ceil(math.log(self.max_value, 16))
-            self.re = re.compile(f"^({self.prefix}){self.sep}([0-9a-f]{{,{self.max_characters}}})$")
-        elif self.encoding == self.ENCODING_BASE_62:
-            self.max_characters = math.ceil(math.log(self.max_value, 62))
-            self.re = re.compile(
-                f"^({self.prefix}){self.sep}([0-9a-zA-Z]{{,{self.max_characters}}})$"
-            )
-        else:
-            raise ValueError(f"Unknown encoding: {self.encoding}")
+        self.encoding = encoding
+        self.codec = CODECS_BY_ENCODING[self.encoding]
+        self.max_value = 2 ** (self.NUM_BITS - 1) - 1
+        self.max_characters = math.ceil(math.log(self.max_value, len(self.codec.digits)))
+        self.re = get_regex(f"{self.prefix}{self.sep}", self.codec, self.pad, self.max_characters)
 
         super().__init__(*args, **kwargs)
 
     def _to_string(self, intvalue):
-        if self.encoding == self.ENCODING_BASE_62:
-            encoded = baseconv.base62.encode(intvalue)
-        elif self.encoding == self.ENCODING_HEX:
-            encoded = baseconv.base16.encode(intvalue).lower()
-
+        encoded = self.codec.encode(intvalue)
         unpadded_len = len(encoded)
         if self.pad and unpadded_len < self.max_characters:
-            encoded = "0" * (self.max_characters - unpadded_len) + encoded
+            pad_char = self.codec.digits[0]
+            encoded = pad_char * (self.max_characters - unpadded_len) + encoded
 
         return f"{self.prefix}{self.sep}{encoded}"
 
@@ -69,12 +103,9 @@ class BaseSpicyAutoField(models.BigAutoField):
             return super().get_prep_value(value)
         m = self.re.match(value)
         if not m:
-            raise ValueError(f'Value "{value}" does not match {self.re}')
+            raise MalformedSpicyIdError(f'Value "{value}" does not match {self.re}')
         _, encoded = m.groups()
-        if self.encoding == self.ENCODING_HEX:
-            return int(encoded, 16)
-        else:
-            return baseconv.base62.decode(encoded)
+        return self.codec.decode(encoded)
 
     def to_python(self, value):
         if not value:
@@ -83,7 +114,7 @@ class BaseSpicyAutoField(models.BigAutoField):
             return value
         elif isinstance(value, int):
             return self._to_string(value)
-        raise ValueError(f"Illegal value: ${value}")
+        raise MalformedSpicyIdError(f"Bad value: ${value}")
 
     def has_default(self):
         if self.randomize:

@@ -13,8 +13,12 @@ class HexModel_WithDefaults(models.Model):
     id = SpicyBigAutoField("ex", primary_key=True, encoding="hex")
 
 
+class Base58Model_WithPadding(models.Model):
+    id = SpicyBigAutoField("ex", primary_key=True, encoding="b58", pad=True)
+
+
 class Base62Model_WithPadding(models.Model):
-    id = SpicyBigAutoField("ex", primary_key=True, pad=True)
+    id = SpicyBigAutoField("ex", primary_key=True, encoding="b62", pad=True)
 
 
 class HexModel_WithPadding(models.Model):

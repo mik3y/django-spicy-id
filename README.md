@@ -1,6 +1,6 @@
 # django-spicy-id
 
-A drop-in replacement for Django `AutoField` that gives you self-identifying string object IDs, like `user_1234`.
+A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" self-identifying string object IDs, like `user_1234`.
 
 **Status:** Experimental! No warranty. See `LICENSE.txt`.
 
@@ -16,6 +16,7 @@ A drop-in replacement for Django `AutoField` that gives you self-identifying str
   - [Field types](#field-types)
   - [Required Parameters](#required-parameters)
   - [Optional Parameters](#optional-parameters)
+  - [Errors](#errors)
 - [Installation](#installation)
   - [Requirements](#requirements)
   - [Instructions](#instructions)
@@ -24,7 +25,7 @@ A drop-in replacement for Django `AutoField` that gives you self-identifying str
 
 ## What is a "spicy" id?
 
-It's a made-up name (because I couldn't think of a better one) for numeric primary keys that are shown and manipulated as a string prefixed with a constant value.
+It's a made-up name (because I couldn't think of a better one) for a numeric primary keys type that is shown and manipulated as a string, prefixed with a constant value.
 
 Here are some examples. You can use this library to make your Django row IDs look like:
 
@@ -32,10 +33,10 @@ Here are some examples. You can use this library to make your Django row IDs loo
 - `account-00000000deadbeef`
 - `bloop:1a2k3841x`
 
-More generally, a "spicy" id is composed of:
+Although you should always treat these values as opaque and _never_ decode or parse the string's contents elsewhere (see _Errors_), you can think of every spicy id as being composed of:
 
 ```
-   <prefix> <separator> <encoded_value>
+<prefix> <separator> <encoded_value>
 ```
 
 - **`prefix`**: A fixed string value that will be the same for all IDs of this record type, forever.
@@ -56,12 +57,28 @@ For a more detailed look at this pattern, see Stripe's ["Object IDs: Designing A
 
 ## Usage
 
+Given the following example model:
+
 ```py
 from django.db import models
 from django_spicy_id.fields import SpicyBigAutoField
 
 class User(models.model):
     id = SpicyBigAutoField(primary_key=True, prefix='usr')
+```
+
+Example usage:
+
+```py
+>>> u = models.User.objects.create()
+>>> u.id
+'usr_1'
+>>> u2 = models.User.objects.create(id=123456789)
+>>> u2.id
+'usr_8M0kX'
+>>> found_user = models.User.objects.filter(id='usr_8M0kX').first()
+>>> found_user == u2
+True
 ```
 
 ### Field types
@@ -81,13 +98,26 @@ The following parameters are required at declaration:
 In addition to all parameters you can provide a normal `AutoField`, each of the field types above supports the following additional optional paramters:
 
 - **`sep`**: The separator character. Defaults to `_`. Can be any string.
-- **`encoding`**: What numeric encoding scheme to use. One of `SpicyAutoField.ENCODING_BASE_62` (default) or `SpicyAutoField.ENCODING_HEX`.
+- **`encoding`**: What numeric encoding scheme to use. One of `fields.ENCODING_BASE_62`, `fields.ENCODING_BASE_58`, or `fields.ENCODING_HEX`.
 - **`pad`**: Whether the encoded portion of the id should be zero-padded so that all values are the same string length. Either `False` (default) or `True`.
   - Example without padding: `user_8M0kX`
   - Example with padding: `user_0000008M0kX`
 - **`randomize`**: If `True`, the default value for creates will be chosen from `random.randrange()`. If `False` (the default), works just like a normal `AutoField` i.e. the default value comes from the database upon `INSERT`.
 
 **Warning:** Changing `prefix`, `sep`, `pad`, or `encoding` after you have started using the field is a _breaking change_. IDs generated with a different configuration will be rejected. You should not do this.
+
+### Errors
+
+The field will throw `django_spicy_id.errors.MalformedSpicyIdError`, a subclass of `ValueError`, when an "illegal" string is provided. Note that this error can happen at runtime.
+
+Some examples of situations that will throw this error:
+
+* Querying a spicy id with the wrong prefix or separator (e.g `id="acct_1234` where `id=invoice_1234` is expected).
+* Using illegal characters in the string.
+* Providing an unpadded value when padding is enabled.
+* Providing a padded value when padded is disabled.
+
+Take special note of the last two errors: Regardless of field configuration the string value a spicy id yields must **always** be treated as an _exact value_. Just like you would never modify a `UUID4`, a spicy id string should never be translated, re-interpreted, or changed by a client.
 
 ## Installation
 
