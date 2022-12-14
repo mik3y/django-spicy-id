@@ -10,7 +10,7 @@ from . import baseconv
 class BaseSpicyAutoField(models.BigAutoField):
     """An auto field that is rendered as a prefixed string."""
 
-    NUM_BITS = 64
+    NUM_BITS = None  # Must be defined in subclasses.
     ENCODING_HEX = "hex"
     ENCODING_BASE_62 = "b62"
 
