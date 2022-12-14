@@ -23,7 +23,7 @@ CODECS_BY_ENCODING = {
 }
 
 # Validates acceptable values for the `prefix=` field parameter.
-LEGAL_PREFIX_RE = re.compile("^[a-zA-Z][0-9a-z-A-Z]?$")
+LEGAL_PREFIX_RE = re.compile("^[a-zA-Z][0-9a-z-A-Z]*$")
 
 
 def get_regex(preamble, codec, pad, char_len):
