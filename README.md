@@ -26,7 +26,7 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
     - [`.re`](#re)
   - [Errors](#errors)
     - [`django.db.utils.ProgrammingError`](#djangodbutilsprogrammingerror)
-    - [`django_spicy_id.errors.MalformedSpicyIdError`](#django_spicy_iderrorsmalformedspicyiderror)
+    - [`django_spicy_id.MalformedSpicyIdError`](#django_spicy_idmalformedspicyiderror)
 - [Tips and tricks](#tips-and-tricks)
   - [Don't change field configuration](#dont-change-field-configuration)
 - [Changelog](#changelog)
@@ -91,7 +91,7 @@ Given the following example model:
 
 ```py
 from django.db import models
-from django_spicy_id.fields import SpicyBigAutoField
+from django_spicy_id import SpicyBigAutoField
 
 class User(models.model):
     id = SpicyBigAutoField(primary_key=True, prefix='usr')
@@ -127,7 +127,7 @@ The following parameters are required at declaration:
 
 In addition to all parameters you can provide a normal `AutoField`, each of the field types above supports the following additional optional paramters:
 
-- **`encoding`**: What numeric encoding scheme to use. One of `fields.ENCODING_BASE_62` (default), `fields.ENCODING_BASE_58`, or `fields.ENCODING_HEX`.
+- **`encoding`**: What numeric encoding scheme to use. One of `django_spicy_id.ENCODING_BASE_62` (default), `django_spicy_id.ENCODING_BASE_58`, or `django_spicy_id.ENCODING_HEX`.
 - **`sep`**: The separator character. Defaults to `_`. Can be any string.
 - **`pad`**: Whether the encoded portion of the id should be zero-padded so that all values are the same string length. Either `False` (default) or `True`.
   - Example without padding: `user_8M0kX`
@@ -167,7 +167,7 @@ You can avoid this situation by validating inputs first. See _Field Attributes_.
 
 **🚨 Warning:** Regardless of field configuration, the string value of a spicy id must **always** be treated as an _exact value_. Just like you would never modify the contents of a `UUID4`, a spicy id string must never be translated, re-interpreted, or changed by a client.
 
-#### `django_spicy_id.errors.MalformedSpicyIdError`
+#### `django_spicy_id.MalformedSpicyIdError`
 
 A subclass of `ValueError`, raised by `.validate_string(strval)` when the provided string is invalid for the field's configuration.
 
