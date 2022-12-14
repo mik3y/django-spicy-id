@@ -4,7 +4,10 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
 
 **Status:** Experimental! No warranty. See `LICENSE.txt`.
 
-![Test status](https://github.com/mik3y/django-spicy-id/actions/workflows/test.yml/badge.svg)
+[![PyPI version](https://badge.fury.io/py/django-spicy-id.svg)](https://badge.fury.io/py/django-spicy-id)
+[![PyPI Supported Python Versions](https://img.shields.io/pypi/pyversions/django-spicy-id.svg)](https://pypi.python.org/pypi/django-spicy-id/) ![Test status](https://github.com/mik3y/django-spicy-id/actions/workflows/test.yml/badge.svg)
+
+## Table of Contents
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -133,8 +136,6 @@ This package supports and is tested against the latest patch versions of:
 All database backends are tested with the latest versions of their drivers. SQLite is also tested on GitHub Actions' latest macOS virtual environment.
 
 ### Instructions
-
-Coming soon: pypi distribution. Then you will be able to do...
 
 ```
 pip install django_spicy_id
