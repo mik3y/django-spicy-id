@@ -14,14 +14,17 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
 
 - [What is a "spicy" id?](#what-is-a-spicy-id)
 - [_Why_ use spicy ids?](#_why_-use-spicy-ids)
+- [Installation](#installation)
+  - [Requirements](#requirements)
+  - [Instructions](#instructions)
 - [Usage](#usage)
   - [Field types](#field-types)
   - [Required Parameters](#required-parameters)
   - [Optional Parameters](#optional-parameters)
   - [Errors](#errors)
-- [Installation](#installation)
-  - [Requirements](#requirements)
-  - [Instructions](#instructions)
+- [Tips and tricks](#tips-and-tricks)
+  - [Don't change field configuration](#dont-change-field-configuration)
+- [Changelog](#changelog)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -56,6 +59,26 @@ Briefly: Because they're so much nicer for humans to work with.
 - **Future-proofing:** Adopting spicy IDs means your systems and APIs are developed to accept a basically-opaque string as an ID. While their underlying type is numeric, in very advanced situations you may be able to migrate to a different type or datastore "behind" the abstraction the string ID creates.
 
 For a more detailed look at this pattern, see Stripe's ["Object IDs: Designing APIs for Humans"](https://dev.to/stripe/designing-apis-for-humans-object-ids-3o5a).
+
+## Installation
+
+### Requirements
+
+This package supports and is tested against the latest patch versions of:
+
+- **Python:** 3.8, 3.9, 3.10, 3.11
+- **Django:** 2.2, 3.1, 4.1
+- **MySQL:** 5.7, 8.0
+- **PostgreSQL:** 9.5, 10, 11, 12
+- **SQLite:** 3.9.0+
+
+All database backends are tested with the latest versions of their drivers. SQLite is also tested on GitHub Actions' latest macOS virtual environment.
+
+### Instructions
+
+```
+pip install django_spicy_id
+```
 
 ## Usage
 
@@ -106,8 +129,6 @@ In addition to all parameters you can provide a normal `AutoField`, each of the 
   - Example with padding: `user_0000008M0kX`
 - **`randomize`**: If `True`, the default value for creates will be chosen from `random.randrange()`. If `False` (the default), works just like a normal `AutoField` i.e. the default value comes from the database upon `INSERT`.
 
-**Warning:** Changing `prefix`, `sep`, `pad`, or `encoding` after you have started using the field is a _breaking change_. IDs generated with a different configuration will be rejected. You should not do this.
-
 ### Errors
 
 The field will throw `django_spicy_id.errors.MalformedSpicyIdError`, a subclass of `ValueError`, when an "illegal" string is provided. Note that this error can happen at runtime.
@@ -121,22 +142,16 @@ Some examples of situations that will throw this error:
 
 Take special note of the last two errors: Regardless of field configuration, the string value of a spicy id must **always** be treated as an _exact value_. Just like you would never modify a `UUID4`, a spicy id string should never be translated, re-interpreted, or changed by a client.
 
-## Installation
+## Tips and tricks
 
-### Requirements
+### Don't change field configuration
 
-This package supports and is tested against the latest patch versions of:
+Changing `prefix`, `sep`, `pad`, or `encoding` after you have started using the field should be considered a _breaking change_ for any external callers.
 
-- **Python:** 3.8, 3.9, 3.10, 3.11
-- **Django:** 2.2, 3.1, 4.1
-- **MySQL:** 5.7, 8.0
-- **PostgreSQL:** 9.5, 10, 11, 12
-- **SQLite:** 3.9.0+
+Although the stored row IDs are never changed, any spicy IDs generated previously, with a different encoding configuration, may now be invalid or (potentially catastrophically) resolve to a different object.
 
-All database backends are tested with the latest versions of their drivers. SQLite is also tested on GitHub Actions' latest macOS virtual environment.
+For just one example, `user_10` would naturally refer to a different numeric row id if parsed as `hex` versus `base62` or `base58`. You should avoid changing the field configuration.
 
-### Instructions
+## Changelog
 
-```
-pip install django_spicy_id
-```
+See [`CHANGELOG.md`](https://github.com/mik3y/django-spicy-id/blob/main/CHANGELOG.md) for a summary of changes.
