@@ -114,12 +114,12 @@ The field will throw `django_spicy_id.errors.MalformedSpicyIdError`, a subclass 
 
 Some examples of situations that will throw this error:
 
-* Querying a spicy id with the wrong prefix or separator (e.g `id="acct_1234` where `id=invoice_1234` is expected).
+* Querying a spicy id with the wrong prefix or separator (e.g `id="acct_1234"` where `id="invoice_1234"` is expected).
 * Using illegal characters in the string.
 * Providing an unpadded value when padding is enabled.
 * Providing a padded value when padded is disabled.
 
-Take special note of the last two errors: Regardless of field configuration the string value a spicy id yields must **always** be treated as an _exact value_. Just like you would never modify a `UUID4`, a spicy id string should never be translated, re-interpreted, or changed by a client.
+Take special note of the last two errors: Regardless of field configuration, the string value of a spicy id must **always** be treated as an _exact value_. Just like you would never modify a `UUID4`, a spicy id string should never be translated, re-interpreted, or changed by a client.
 
 ## Installation
 
