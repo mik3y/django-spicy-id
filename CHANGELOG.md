@@ -1,6 +1,6 @@
 # Changelog
 
-## Current version (in development)
+## v0.3.0 (2022-12-14)
 
 * Breaking change: Providing both `default` and `randomize` is not alowed.
 * Breaking change: Illegal values now throw `django.db.utils.ProgrammingError`
