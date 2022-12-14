@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.1 (2022-12-14)
+
+* bugfix: fix an error with prefixes greater than 2 characters (:facepalm:)
+
 ## v0.3.0 (2022-12-14)
 
 * Breaking change: Providing both `default` and `randomize` is not alowed.
