@@ -5,10 +5,28 @@ from django.db.utils import ProgrammingError
 from django.test import TestCase
 
 from django_spicy_id import MalformedSpicyIdError, SpicyAutoField
+from django_spicy_id.fields import LEGAL_PREFIX_RE
 from django_spicy_id.tests import models
 
 
 class TestFields(TestCase):
+    def test_prefix_re(self):
+        legal_prefixes = (
+            "e",
+            "ex",
+            "ExampleThatsReallyLong",
+        )
+        for p in legal_prefixes:
+            self.assertIsNotNone(LEGAL_PREFIX_RE.match(p))
+
+        illegal_prefixes = (
+            "",
+            "🆒",
+            "9gag",
+        )
+        for p in illegal_prefixes:
+            self.assertIsNone(LEGAL_PREFIX_RE.match(p))
+
     def test_field_configuration(self):
         with self.assertRaisesMessage(ImproperlyConfigured, "unknown encoding"):
             SpicyAutoField(prefix="yo", encoding="doop")
