@@ -1,6 +1,6 @@
 from django.db import models
 
-from django_spicy_id.fields import SpicyBigAutoField
+from django_spicy_id import SpicyBigAutoField
 
 
 class Model_WithDefaults(models.Model):

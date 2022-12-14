@@ -21,7 +21,12 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
   - [Field types](#field-types)
   - [Required Parameters](#required-parameters)
   - [Optional Parameters](#optional-parameters)
+  - [Field Attributes](#field-attributes)
+    - [`.validate_string(strval)`](#validate_stringstrval)
+    - [`.re`](#re)
   - [Errors](#errors)
+    - [`django.db.utils.ProgrammingError`](#djangodbutilsprogrammingerror)
+    - [`django_spicy_id.MalformedSpicyIdError`](#django_spicy_idmalformedspicyiderror)
 - [Tips and tricks](#tips-and-tricks)
   - [Don't change field configuration](#dont-change-field-configuration)
 - [Changelog](#changelog)
@@ -86,7 +91,7 @@ Given the following example model:
 
 ```py
 from django.db import models
-from django_spicy_id.fields import SpicyBigAutoField
+from django_spicy_id import SpicyBigAutoField
 
 class User(models.model):
     id = SpicyBigAutoField(primary_key=True, prefix='usr')
@@ -122,25 +127,49 @@ The following parameters are required at declaration:
 
 In addition to all parameters you can provide a normal `AutoField`, each of the field types above supports the following additional optional paramters:
 
+- **`encoding`**: What numeric encoding scheme to use. One of `django_spicy_id.ENCODING_BASE_62` (default), `django_spicy_id.ENCODING_BASE_58`, or `django_spicy_id.ENCODING_HEX`.
 - **`sep`**: The separator character. Defaults to `_`. Can be any string.
-- **`encoding`**: What numeric encoding scheme to use. One of `fields.ENCODING_BASE_62`, `fields.ENCODING_BASE_58`, or `fields.ENCODING_HEX`.
 - **`pad`**: Whether the encoded portion of the id should be zero-padded so that all values are the same string length. Either `False` (default) or `True`.
   - Example without padding: `user_8M0kX`
   - Example with padding: `user_0000008M0kX`
-- **`randomize`**: If `True`, the default value for creates will be chosen from `random.randrange()`. If `False` (the default), works just like a normal `AutoField` i.e. the default value comes from the database upon `INSERT`.
+- **`randomize`**: If `True`, the default value of a new record will be generated randomly using `secrets.randbelow()`. If `False` (the default), works just like a normal `AutoField` i.e. the default value comes from the database upon `INSERT`.
+  - When `randomize` is set, an error will be thrown if `default` is also set, since `randomize` is essentially a special and built-in `default` function.
+  - If you use this feature, be aware of its hazards: 
+      - The generated ID may conflict with an existing row, with probability [determined by the birthday problem](https://en.wikipedia.org/wiki/Birthday_problem#Probability_table) (i.e. the column size and the size of the existing dataset).
+      - A conflict can also arise if two processes generate the same value for `secrets.randbelow()` (i.e. if system entropy is identical or misconfigured for some reason),
+
+### Field Attributes
+
+The following attributes are available on the field once constructed
+
+#### `.validate_string(strval)`
+
+Checks whether `strval` is a legal value for the field, throwing `django_spicy_id.errors.MalformedSpicyIdError` if not.
+
+#### `.re`
+
+A compiled regex which can be used to validate a string, e.g. in Django `urlpatterns`.
 
 ### Errors
 
-The field will throw `django_spicy_id.errors.MalformedSpicyIdError`, a subclass of `ValueError`, when an "illegal" string is provided. Note that this error can happen at runtime.
+#### `django.db.utils.ProgrammingError`
 
-Some examples of situations that will throw this error:
+Thrown when attempting to access or query this field using an illegal value. Some examples of this situation:
 
-* Querying a spicy id with the wrong prefix or separator (e.g `id="acct_1234"` where `id="invoice_1234"` is expected).
-* Using illegal characters in the string.
+* Providing a spicy id with the wrong prefix or separator (e.g `id="acct_1234"` where `id="invoice_1234"` is expected).
+* Providing a string with illegal characters in it (i.e. where the encoded part isn't decodable)
 * Providing an unpadded value when padding is enabled.
 * Providing a padded value when padded is disabled.
 
-Take special note of the last two errors: Regardless of field configuration, the string value of a spicy id must **always** be treated as an _exact value_. Just like you would never modify a `UUID4`, a spicy id string should never be translated, re-interpreted, or changed by a client.
+You can consider these situations analogous to providing a wrongly-typed object to any other field type, for example `SomeModel.objects.filter(id=object())`.
+
+You can avoid this situation by validating inputs first. See _Field Attributes_.
+
+**🚨 Warning:** Regardless of field configuration, the string value of a spicy id must **always** be treated as an _exact value_. Just like you would never modify the contents of a `UUID4`, a spicy id string must never be translated, re-interpreted, or changed by a client.
+
+#### `django_spicy_id.MalformedSpicyIdError`
+
+A subclass of `ValueError`, raised by `.validate_string(strval)` when the provided string is invalid for the field's configuration.
 
 ## Tips and tricks
 
