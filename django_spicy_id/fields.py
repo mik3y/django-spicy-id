@@ -4,26 +4,30 @@ import secrets
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
+from django.db.utils import ProgrammingError
 
 from django_spicy_id.errors import MalformedSpicyIdError
 
 from . import baseconv
 
+# Encoding strategies which may be selected with the `encoding=` field parameter.
 ENCODING_HEX = "hex"
 ENCODING_BASE_58 = "b58"
 ENCODING_BASE_62 = "b62"
 
+# Maps encoding strategy to its encoder/decoder.
 CODECS_BY_ENCODING = {
     ENCODING_HEX: baseconv.base16,
     ENCODING_BASE_58: baseconv.base58,
     ENCODING_BASE_62: baseconv.base62,
 }
 
+# Validates acceptable values for the `prefix=` field parameter.
 LEGAL_PREFIX_RE = re.compile("^[a-zA-Z][0-9a-z-A-Z]?$")
 
 
 def get_regex(preamble, codec, pad, char_len):
-    """Builder function
+    """Returns a regex that validates a spicy id with with given parameters.
 
     If `pad` is True, the regex allows leading padding characters (a
     zero in most codecs). Else, these are not allowed.
@@ -96,22 +100,46 @@ class BaseSpicyAutoField(models.BigAutoField):
         """Generates a random value on the range [1, self.max_value)."""
         return 1 + secrets.randbelow(self.max_value - 1)
 
+    def _validate_string_internal(self, s):
+        if not isinstance(s, str):
+            raise MalformedSpicyIdError("value must be a string")
+        if not s:
+            raise MalformedSpicyIdError("value must be non-empty")
+        m = self.re.match(s)
+        if not self.re.match(s):
+            raise MalformedSpicyIdError(
+                f"value does not match expected regex {repr(self.re.pattern)}"
+            )
+        _, encoded = m.groups()
+        return encoded
+
+    def validate_string(self, strval):
+        """Utility function to validate any string against this field's config.
+
+        Raises `MalformedSpicyIdError` on any error. Returns
+        """
+        # Implemented by wrapping `_validate_string_internal` and stripping away the
+        # return value, because we need access to the retval internally (but don't
+        # want public clients to depend on it).
+        self._validate_string_internal(strval)
+
     def from_db_value(self, value, expression, connection):
         if value is None:
             return None
         return self._to_string(value)
 
     def get_prep_value(self, value):
-        if value is None and self.randomize:
-            value = self._generate_random_default_value()
-            return value
-        if value is None or isinstance(value, int):
+        if not value:
+            if self.randomize:
+                return self._generate_random_default_value()
             return super().get_prep_value(value)
-        m = self.re.match(value)
-        if not m:
-            raise MalformedSpicyIdError(f'Value "{value}" does not match {self.re}')
-        _, encoded = m.groups()
-        return self.codec.decode(encoded)
+        elif isinstance(value, int):
+            return super().get_prep_value(value)
+        try:
+            encoded = self._validate_string_internal(value)
+            return self.codec.decode(encoded)
+        except MalformedSpicyIdError as e:
+            raise ProgrammingError(f"the value {repr(value)} is not valid: {e}")
 
     def to_python(self, value):
         if not value:
@@ -120,7 +148,7 @@ class BaseSpicyAutoField(models.BigAutoField):
             return value
         elif isinstance(value, int):
             return self._to_string(value)
-        raise MalformedSpicyIdError(f"Bad value: ${value}")
+        raise ProgrammingError(f"The value {repr(value)} is not valid for this field")
 
     def has_default(self):
         if self.randomize:
