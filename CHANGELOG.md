@@ -1,5 +1,9 @@
 # Changelog
 
+## Current version (in development)
+
+* Feature: Add and document the `.re_pattern` attribute.
+
 ## v0.3.1 (2022-12-14)
 
 * bugfix: fix an error with prefixes greater than 2 characters (:facepalm:)

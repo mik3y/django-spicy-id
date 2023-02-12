@@ -24,6 +24,7 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
   - [Field Attributes](#field-attributes)
     - [`.validate_string(strval)`](#validate_stringstrval)
     - [`.re`](#re)
+    - [`.re_pattern`](#re_pattern)
   - [Errors](#errors)
     - [`django.db.utils.ProgrammingError`](#djangodbutilsprogrammingerror)
     - [`django_spicy_id.MalformedSpicyIdError`](#django_spicy_idmalformedspicyiderror)
@@ -148,7 +149,11 @@ Checks whether `strval` is a legal value for the field, throwing `django_spicy_i
 
 #### `.re`
 
-A compiled regex which can be used to validate a string, e.g. in Django `urlpatterns`.
+A compiled regex which can be used to validate a string.
+
+#### `.re_pattern`
+
+A string regex pattern which can be used to validate a string. Unlike the pattern used in `re`, this pattern does not include the leading `^` and trailing `$` boundary characters, making it easier to use in things like Django url patterns.
 
 ### Errors
 

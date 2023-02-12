@@ -85,6 +85,14 @@ class BaseSpicyAutoField(models.BigAutoField):
         self.max_characters = math.ceil(math.log(self.max_value, len(self.codec.digits)))
         self.re = get_regex(f"{self.prefix}{self.sep}", self.codec, self.pad, self.max_characters)
 
+        # Expose the re pattern without word boundaries, for use in places where they
+        # would interfere (like urlpatterns).
+        #
+        # TODO(mikey): Expose `.as_converter()`, generating a Django URLpatterns converter
+        # class, as a further convenience.
+        # Ref: https://docs.djangoproject.com/en/4.1/topics/http/urls/#registering-custom-path-converters
+        self.re_pattern = self.re.pattern[1:-1]
+
         super().__init__(*args, **kwargs)
 
     def _to_string(self, intvalue):
