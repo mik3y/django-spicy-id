@@ -45,7 +45,7 @@ def get_regex(preamble, codec, pad, char_len):
 
 
 class BaseSpicyAutoField(models.BigAutoField):
-    """An auto field that is rendered as a prefixed string."""
+    """An AutoField that is rendered as a prefixed string."""
 
     NUM_BITS = None  # Must be defined in subclasses.
 
@@ -59,6 +59,10 @@ class BaseSpicyAutoField(models.BigAutoField):
         *args,
         **kwargs,
     ):
+        if not self.NUM_BITS:
+            raise NotImplemented(
+                "attempt to init abstract base class, or subclass has failed to set NUM_BITS"
+            )
         if encoding not in CODECS_BY_ENCODING:
             raise ImproperlyConfigured(f'unknown encoding "{encoding}"')
         if not isinstance(prefix, str):
@@ -179,12 +183,18 @@ class BaseSpicyAutoField(models.BigAutoField):
 
 
 class SpicyBigAutoField(BaseSpicyAutoField, models.BigAutoField):
+    """A Spicy ID field that is backed by a standard 64-bit Django BigAutoField."""
+
     NUM_BITS = 64
 
 
 class SpicyAutoField(BaseSpicyAutoField, models.AutoField):
+    """A Spicy ID field that is backed by a standard 32-bit Django AutoField."""
+
     NUM_BITS = 32
 
 
 class SpicySmallAutoField(BaseSpicyAutoField, models.SmallAutoField):
+    """A Spicy ID field that is backed by a standard 16-bit Django SmallAutoField."""
+
     NUM_BITS = 16
