@@ -7,6 +7,7 @@ from .fields import (
     SpicyBigAutoField,
     SpicySmallAutoField,
 )
+from .utils import get_url_converter
 
 __all__ = [
     SpicySmallAutoField,
@@ -17,4 +18,5 @@ __all__ = [
     ENCODING_BASE_62,
     SpicyIdError,
     MalformedSpicyIdError,
+    get_url_converter,
 ]

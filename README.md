@@ -21,10 +21,13 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
   - [Field types](#field-types)
   - [Required Parameters](#required-parameters)
   - [Optional Parameters](#optional-parameters)
+  - [Registering URLs](#registering-urls)
   - [Field Attributes](#field-attributes)
     - [`.validate_string(strval)`](#validate_stringstrval)
     - [`.re`](#re)
     - [`.re_pattern`](#re_pattern)
+  - [Utility methods](#utility-methods)
+    - [`get_url_converter(model_class, field_name)`](#get_url_convertermodel_class-field_name)
   - [Errors](#errors)
     - [`django.db.utils.ProgrammingError`](#djangodbutilsprogrammingerror)
     - [`django_spicy_id.MalformedSpicyIdError`](#django_spicy_idmalformedspicyiderror)
@@ -137,7 +140,45 @@ In addition to all parameters you can provide a normal `AutoField`, each of the 
   - When `randomize` is set, an error will be thrown if `default` is also set, since `randomize` is essentially a special and built-in `default` function.
   - If you use this feature, be aware of its hazards: 
       - The generated ID may conflict with an existing row, with probability [determined by the birthday problem](https://en.wikipedia.org/wiki/Birthday_problem#Probability_table) (i.e. the column size and the size of the existing dataset).
-      - A conflict can also arise if two processes generate the same value for `secrets.randbelow()` (i.e. if system entropy is identical or misconfigured for some reason),
+      - A conflict can also arise if two processes generate the same value for `secrets.randbelow()` (i.e. if system entropy is identical or misconfigured for some reason).
+
+### Registering URLs
+
+When installing routes that must match a specific spicy id, you can use the `get_url_converter()` helper method to install a Django [custom path converter](https://docs.djangoproject.com/en/3.2/topics/http/urls/#registering-custom-path-converters).
+
+Using this method will ensure that _only_ valid spicy ID strings for that field will be presented to your view.
+
+Example:
+
+```py
+# models.py
+class User(models.model):
+    id = SpicyBigAutoField(primary_key=True, prefix='usr')
+```
+
+```py
+# urls.py
+from . import models
+from django.urls import path, register_converter
+from django_spicy_id import get_url_converter
+
+# Register the pattern for `User.id` as "spicy_user_id". You should do this
+# once for each unique spicy ID field.
+register_converter(get_url_converter(models.User, 'id'), 'spicy_user_id')
+
+urlpatterns = [
+    path('users/<spicy_user_id:id>', views.user_detail),
+    ...
+]
+```
+
+```py
+# views.py
+
+def user_detail(request, id):
+  user = models.User.objects.get(id=id)
+  ...
+```
 
 ### Field Attributes
 
@@ -154,6 +195,18 @@ A compiled regex which can be used to validate a string.
 #### `.re_pattern`
 
 A string regex pattern which can be used to validate a string. Unlike the pattern used in `re`, this pattern does not include the leading `^` and trailing `$` boundary characters, making it easier to use in things like Django url patterns.
+
+You probably don't need to use this directly, instead see `get_url_converter()`.
+
+### Utility methods
+
+These utility methods are provided on the top-level `django_spicy_id` module.
+
+#### `get_url_converter(model_class, field_name)`
+
+Returns a Django [custom path converter](https://docs.djangoproject.com/en/3.2/topics/http/urls/#registering-custom-path-converters) for `field_name` on `model_class`.
+
+See [Registering URLs](#registering-urls) for example usage.
 
 ### Errors
 

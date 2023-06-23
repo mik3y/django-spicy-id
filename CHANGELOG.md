@@ -2,6 +2,7 @@
 
 ## Current version (in development)
 
+* Feature: Add and document the `get_url_converter()` helper.
 * Feature: Add and document the `.re_pattern` attribute.
 
 ## v0.3.1 (2022-12-14)

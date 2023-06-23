@@ -18,6 +18,8 @@ MIDDLEWARE_CLASSES = (
     "django.middleware.locale.LocaleMiddleware",
 )
 
+ROOT_URLCONF = "django_spicy_id.tests.urls"
+
 # TEMPLATES = [
 #     {
 #         "BACKEND": "django.template.backends.django.DjangoTemplates",
