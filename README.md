@@ -2,7 +2,7 @@
 
 A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" self-identifying string object IDs, like `user_1234`.
 
-**Status:** Experimental! No warranty. See `LICENSE.txt`.
+**Status:** Generaly stable. No warranty. See `LICENSE.txt`.
 
 [![PyPI version](https://badge.fury.io/py/django-spicy-id.svg)](https://badge.fury.io/py/django-spicy-id)
 [![PyPI Supported Python Versions](https://img.shields.io/pypi/pyversions/django-spicy-id.svg)](https://pypi.python.org/pypi/django-spicy-id/) ![Test status](https://github.com/mik3y/django-spicy-id/actions/workflows/test.yml/badge.svg)
@@ -13,7 +13,7 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [What is a "spicy" id?](#what-is-a-spicy-id)
-- [_Why_ use spicy ids?](#_why_-use-spicy-ids)
+- [Why use spicy ids?](#why-use-spicy-ids)
 - [Installation](#installation)
   - [Requirements](#requirements)
   - [Instructions](#instructions)
@@ -59,7 +59,7 @@ Although you should always treat these values as opaque and _never_ decode or pa
 
 Importantly, the underlying database value is still stored and retrieved as a _numeric type_, just like an `AutoField`, `SmallAutoField`, or `BigAutoField`.
 
-## _Why_ use spicy ids?
+## Why use spicy ids?
 
 Briefly: Because they're so much nicer for humans to work with.
 
@@ -125,7 +125,7 @@ True
 
 The following parameters are required at declaration:
 
-* **`prefix`**: The prefix to use in the encoded form. Typically this is a short, descriptive string, like `user` or `acct` and similar. **Note:** This library does not ensure the string you provide is unique within your project. You should ensure of that.
+* **`prefix`**: The prefix to use in the encoded form. Typically this is a short, descriptive string, like `user` or `acct` and similar. **Note:** This library does not ensure the string you provide is unique within your project. You should ensure that.
 
 ### Optional Parameters
 
