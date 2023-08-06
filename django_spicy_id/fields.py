@@ -44,7 +44,7 @@ def get_regex(preamble, codec, pad, char_len):
         return re.compile(f"^({escaped_preamble})([{digits}]{{{char_len}}})$")
 
 
-class BaseSpicyAutoField(models.BigAutoField):
+class BaseSpicyAutoField(models.Field):
     """An AutoField that is rendered as a prefixed string."""
 
     NUM_BITS = None  # Must be defined in subclasses.
