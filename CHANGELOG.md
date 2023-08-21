@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.1 (2023-08-20)
+
+* Repackage of previous release. No code changes compared to `v0.6.0`.
+
 ## v0.6.0 (2023-08-20)
 
 * Breaking change: Bug fix: The `randomize` feature will set `.id` to a string, not a number, when the instance is created.
