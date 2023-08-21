@@ -1,5 +1,10 @@
 # Changelog
 
+## Current version (in development)
+
+* Updated target Django versions from `3.1 -> 3.2` and `4.1 -> 4.2`
+* Updated integration tests to properly test against all Django versions (#7).
+
 ## v0.6.1 (2023-08-20)
 
 * Repackage of previous release. No code changes compared to `v0.6.0`.
