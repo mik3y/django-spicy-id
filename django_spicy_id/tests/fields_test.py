@@ -205,3 +205,16 @@ class TestFields(TestCase):
         model = models.HexModel_WithPadding
         o = model.objects.create(id=0x123)
         self.assertEqual("ex_0000000000000123", o.id)
+
+    @mock.patch("secrets.randbelow")
+    def test_randomize_sets_pk_to_a_string(self, mock_secrets_randbelow):
+        """Ensures that when `randomize` is used, the value set is a string not a number."""
+        model = models.Base62Model_WithRandomize
+
+        mock_secrets_randbelow.return_value = 1
+        o = model()
+        self.assertEqual("ex_2", o.pk)
+        self.assertTrue(o._state.adding)
+        o.save()
+        self.assertEqual("ex_2", o.pk)
+        self.assertFalse(o._state.adding)
