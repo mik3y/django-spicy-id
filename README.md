@@ -138,6 +138,7 @@ In addition to all parameters you can provide a normal `AutoField`, each of the 
   - Example with padding: `user_0000008M0kX`
 - **`randomize`**: If `True`, the default value of a new record will be generated randomly using `secrets.randbelow()`. If `False` (the default), works just like a normal `AutoField` i.e. the default value comes from the database upon `INSERT`.
   - When `randomize` is set, an error will be thrown if `default` is also set, since `randomize` is essentially a special and built-in `default` function.
+  - Since `randomize` installs a special `default` function, a new but unsaved model instance will have a non-`None` value for `object.id` / `object.pk`. You must used `object._state.adding` to determine whether an instance is a new but unsaved object.
   - If you use this feature, be aware of its hazards: 
       - The generated ID may conflict with an existing row, with probability [determined by the birthday problem](https://en.wikipedia.org/wiki/Birthday_problem#Probability_table) (i.e. the column size and the size of the existing dataset).
       - A conflict can also arise if two processes generate the same value for `secrets.randbelow()` (i.e. if system entropy is identical or misconfigured for some reason).

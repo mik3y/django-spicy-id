@@ -1,5 +1,9 @@
 # Changelog
 
+## Current version (in development)
+
+* Breaking change: Bug fix: The `randomize` feature will set `.id` to a string, not a number, when the instance is created.
+
 ## v0.5.0 (2023-08-06)
 
 * Breaking change: Fixed bug causing `SpicyAutoField` and `SpicySmallAutoField` to inherit from `models.BigAutoField`.

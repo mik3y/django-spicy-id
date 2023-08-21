@@ -83,6 +83,12 @@ class BaseSpicyAutoField(models.Field):
         self.randomize = randomize
         self.pad = pad
 
+        if randomize:
+            # Inject our default value generator when `randomize` is enabled.
+            # Note that this must be stripped in `deconstruct()` so migrations don't
+            # get generated with the default function.
+            kwargs["default"] = lambda: self._new_random_id()
+
         self.encoding = encoding
         self.codec = CODECS_BY_ENCODING[self.encoding]
         self.max_value = 2 ** (self.NUM_BITS - 1) - 1
@@ -107,6 +113,9 @@ class BaseSpicyAutoField(models.Field):
             encoded = pad_char * (self.max_characters - unpadded_len) + encoded
 
         return f"{self.prefix}{self.sep}{encoded}"
+
+    def _new_random_id(self):
+        return self._to_string(self._generate_random_default_value())
 
     def _generate_random_default_value(self):
         """Generates a random value on the range [1, self.max_value)."""
@@ -142,8 +151,6 @@ class BaseSpicyAutoField(models.Field):
 
     def get_prep_value(self, value):
         if not value:
-            if self.randomize:
-                return self._generate_random_default_value()
             return super().get_prep_value(value)
         elif isinstance(value, int):
             return super().get_prep_value(value)
@@ -162,23 +169,17 @@ class BaseSpicyAutoField(models.Field):
             return self._to_string(value)
         raise ProgrammingError(f"The value {repr(value)} is not valid for this field")
 
-    def has_default(self):
-        if self.randomize:
-            return True
-        return super().has_default()
-
-    def get_default(self):
-        if self.randomize:
-            return self._generate_random_default_value()
-        return super().get_default()
-
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
         kwargs["prefix"] = self.prefix
         kwargs["sep"] = self.sep
         kwargs["encoding"] = self.encoding
-        kwargs["randomize"] = self.randomize
         kwargs["pad"] = self.pad
+        kwargs["randomize"] = self.randomize
+        if kwargs["randomize"] and "default" in kwargs:
+            # Keep our built-in `default` function hidden from migrations, etc., when
+            # the higher-level feature `randomize` is enabled.
+            del kwargs["default"]
         return name, path, args, kwargs
 
 
