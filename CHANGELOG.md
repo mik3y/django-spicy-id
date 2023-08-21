@@ -1,6 +1,6 @@
 # Changelog
 
-## Current version (in development)
+## v0.6.0 (2023-08-20)
 
 * Breaking change: Bug fix: The `randomize` feature will set `.id` to a string, not a number, when the instance is created.
 
