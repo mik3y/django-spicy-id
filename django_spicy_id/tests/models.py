@@ -1,6 +1,6 @@
 from django.db import models
 
-from django_spicy_id import SpicyBigAutoField
+from django_spicy_id import SpicyAutoField, SpicyBigAutoField
 
 
 class Model_WithDefaults(models.Model):
@@ -31,3 +31,7 @@ class Base62Model_WithRandomize(models.Model):
 
 class HexModel_WithRandomize(models.Model):
     id = SpicyBigAutoField("ex", primary_key=True, encoding="hex", randomize=True)
+
+
+class SpicyAutoFieldModel_WithRandomize(models.Model):
+    id = SpicyAutoField("ex", primary_key=True, encoding="hex", randomize=True)
