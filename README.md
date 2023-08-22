@@ -76,7 +76,7 @@ For a more detailed look at this pattern, see Stripe's ["Object IDs: Designing A
 This package supports and is tested against the latest patch versions of:
 
 - **Python:** 3.8, 3.9, 3.10, 3.11
-- **Django:** 2.2, 3.2, 4.2
+- **Django:** 3.2, 4.2
 - **MySQL:** 5.7, 8.0
 - **PostgreSQL:** 9.5, 10, 11, 12
 - **SQLite:** 3.9.0+
