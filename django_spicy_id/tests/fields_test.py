@@ -209,12 +209,12 @@ class TestFields(TestCase):
     @mock.patch("secrets.randbelow")
     def test_randomize_sets_pk_to_a_string(self, mock_secrets_randbelow):
         """Ensures that when `randomize` is used, the value set is a string not a number."""
-        model = models.Base62Model_WithRandomize
+        model = models.SpicyAutoFieldModel_WithRandomize
 
         mock_secrets_randbelow.return_value = 1
         o = model()
-        self.assertEqual("ex_2", o.pk)
+        self.assertEqual("ex_2", o.id)
         self.assertTrue(o._state.adding)
         o.save()
-        self.assertEqual("ex_2", o.pk)
+        self.assertEqual("ex_2", o.id)
         self.assertFalse(o._state.adding)

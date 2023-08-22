@@ -2,8 +2,10 @@ import math
 import re
 import secrets
 
+import django
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
+from django.db.models.signals import post_save
 from django.db.utils import ProgrammingError
 
 from django_spicy_id.errors import MalformedSpicyIdError
@@ -181,6 +183,37 @@ class BaseSpicyAutoField(models.Field):
             # the higher-level feature `randomize` is enabled.
             del kwargs["default"]
         return name, path, args, kwargs
+
+    def contribute_to_class(self, cls, name, **kwargs):
+        super().contribute_to_class(cls, name, **kwargs)
+
+        # Special case: Register a signal handler when this row is created.
+        # Workaround for issue #6 / Django issue 32442.
+        #
+        # When the DB connection does not support `can_return_columns_from_insert`,
+        # the raw row value is returned by Django on insert. This causes the caller
+        # to receive a numeric value when the row is inserted, due to the upstream
+        # bug (value does flow through `Field.from_db_value()`).
+        #
+        # https://code.djangoproject.com/ticket/32442
+
+        # Not needed in Django >= 4.
+        if django.VERSION >= (4, 0):
+            return
+
+        # Only affects primary keys.
+        if not self.primary_key:
+            return
+
+        def spicy_id_create_handler(sender, instance, created, raw, **kwargs):
+            if not created or raw:
+                return
+            nonlocal name
+            val = getattr(instance, name)
+            if isinstance(val, int):
+                setattr(instance, name, self.to_python(val))
+
+        post_save.connect(spicy_id_create_handler, sender=cls, weak=False)
 
 
 class SpicyBigAutoField(BaseSpicyAutoField, models.BigAutoField):

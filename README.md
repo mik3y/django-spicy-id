@@ -83,6 +83,8 @@ This package supports and is tested against the latest patch versions of:
 
 All database backends are tested with the latest versions of their drivers. SQLite is also tested on GitHub Actions' latest macOS virtual environment.
 
+**Note:** Django 4.x is recommended due to an [upstream bug](https://code.djangoproject.com/ticket/32442) that is present in 3.x. See [#6](https://github.com/mik3y/django-spicy-id/issues/6) for further details.
+
 ### Instructions
 
 ```
