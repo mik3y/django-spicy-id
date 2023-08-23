@@ -1,8 +1,11 @@
 # Changelog
 
-## Current version (in development)
+## v0.7.0 (2023-08-23)
 
-* Dropped support for Django 2.2.
+This version fixes a bug that affects Django 3.x installations and is recommended for those users.
+
+* Bugfix: Add workaround for a Django 3.x bug where a newly-saved instance's `.id` might be returned as a number, not a spicy string. (#6)
+* Breaking change: Dropped support for Django 2.2.
 * Updated target Django versions from `3.1 -> 3.2` and `4.1 -> 4.2`.
 * Updated integration tests to properly test against all Django versions (#7).
 
