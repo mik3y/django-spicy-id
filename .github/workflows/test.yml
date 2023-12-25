@@ -16,10 +16,10 @@ jobs:
       max-parallel: 4
       matrix:
         python-version:
-          - "3.8"
           - "3.9"
           - "3.10"
           - "3.11"
+          - "3.12"
         django-version:
           - "django32"
           - "django42"
@@ -66,10 +66,10 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - "3.8"
           - "3.9"
           - "3.10"
           - "3.11"
+          - "3.12"
         django-version:
           - "django32"
           - "django42"
@@ -119,10 +119,10 @@ jobs:
           - "django32"
           - "django42"
         python-version:
-          - "3.8"
           - "3.9"
           - "3.10"
           - "3.11"
+          - "3.12"
     steps:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
