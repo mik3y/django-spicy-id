@@ -2,7 +2,7 @@
 
 A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" self-identifying string object IDs, like `user_1234`.
 
-**Status:** Generaly stable. No warranty. See `LICENSE.txt`.
+**Status:** Stable. No warranty, see `LICENSE.txt`.
 
 [![PyPI version](https://badge.fury.io/py/django-spicy-id.svg)](https://badge.fury.io/py/django-spicy-id)
 [![PyPI Supported Python Versions](https://img.shields.io/pypi/pyversions/django-spicy-id.svg)](https://pypi.python.org/pypi/django-spicy-id/) ![Test status](https://github.com/mik3y/django-spicy-id/actions/workflows/test.yml/badge.svg)
