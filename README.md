@@ -22,6 +22,7 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
   - [Required Parameters](#required-parameters)
   - [Optional Parameters](#optional-parameters)
   - [Registering URLs](#registering-urls)
+  - [Django REST Framework](#django-rest-framework)
   - [Field Attributes](#field-attributes)
     - [`.validate_string(strval)`](#validate_stringstrval)
     - [`.re`](#re)
@@ -181,6 +182,18 @@ urlpatterns = [
 def user_detail(request, id):
   user = models.User.objects.get(id=id)
   ...
+```
+
+### Django REST Framework
+
+Django REST Framework (DRF) works mostly without issue with `django-spicy-id`. However, an additional step is needed so that DRF treats spicy ID fields as strings, not integers, in serializers.
+
+You can use the included utility function to monkey patch DRF. It is safe to call this method multiple times.
+
+```py
+from django_spicy_id import monkey_patch_drf
+
+monkey_patch_drf()
 ```
 
 ### Field Attributes

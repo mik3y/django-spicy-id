@@ -1,5 +1,9 @@
 # Changelog
 
+## Current version (in development)
+
+* Feature: Added `monkey_patch_drf()` utility.
+
 ## v0.7.0 (2023-08-23)
 
 This version fixes a bug that affects Django 3.x installations and is recommended for those users.
