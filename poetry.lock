@@ -989,7 +989,6 @@ babel = ">=2.9"
 colorama = {version = ">=0.4.5", markers = "sys_platform == \"win32\""}
 docutils = ">=0.18.1,<0.20"
 imagesize = ">=1.3"
-importlib-metadata = {version = ">=4.8", markers = "python_version < \"3.10\""}
 Jinja2 = ">=3.0"
 packaging = ">=21.0"
 Pygments = ">=2.13"
@@ -1215,5 +1214,5 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.9.0"
-content-hash = "9bcb8be9b42c277048a4641a8aa54e9c610f4e04f63667752432c71fd52e9188"
+python-versions = "^3.10.0"
+content-hash = "2409eaf933721eb121568d29d7a882bfebb5f3e3daa640d85465422a53b2ee7d"
