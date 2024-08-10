@@ -3,6 +3,7 @@
 ## Current version (in development)
 
 * Internal: Switch Python code formatter/linter to [ruff](https://docs.astral.sh/ruff/).
+* Internal: Drop support for Python 3.9.
 
 ## v1.0.0 (2023-12-25)
 
