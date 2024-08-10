@@ -5,17 +5,17 @@ Adapted from `django.utils.baseconv` which bears the following license:
     Copyright (c) 2010 Guilherme Gondim. All rights reserved.
     Copyright (c) 2009 Simon Willison. All rights reserved.
     Copyright (c) 2002 Drew Perttula. All rights reserved.
-   
+
     License:
       Python Software Foundation License version 2
-   
+
     See the file "LICENSE" for terms & conditions for usage, and a DISCLAIMER OF
     ALL WARRANTIES.
-   
+
     This Baseconv distribution contains no GNU General Public Licensed (GPLed)
     code so it may be used in proprietary projects just like prior ``baseconv``
     distributions.
-   
+
     All trademarks referenced herein are property of their respective holders.
 """
 

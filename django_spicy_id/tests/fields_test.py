@@ -4,7 +4,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db.utils import ProgrammingError
 from django.test import TestCase
 
-from django_spicy_id import MalformedSpicyIdError, SpicyAutoField
+from django_spicy_id import SpicyAutoField
 from django_spicy_id.fields import LEGAL_PREFIX_RE
 from django_spicy_id.tests import models
 

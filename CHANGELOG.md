@@ -1,5 +1,9 @@
 # Changelog
 
+## Current version (in development)
+
+* Internal: Switch Python code formatter/linter to [ruff](https://docs.astral.sh/ruff/).
+
 ## v1.0.0 (2023-12-25)
 
 * Feature: Added `monkey_patch_drf()` utility.

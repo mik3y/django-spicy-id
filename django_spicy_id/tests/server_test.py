@@ -16,7 +16,7 @@ class ServerTestCase(TestCase):
             response = c.get(f"/example/hex-nopad/{bad_id}")
             self.assertEqual(404, response.status_code, f"expected 404 for {bad_id}")
 
-    def test_valid_spicy_urls_hex(self):
+    def test_valid_spicy_urls_b58(self):
         c = Client()
 
         # Valid IDs.

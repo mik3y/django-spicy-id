@@ -62,7 +62,7 @@ class BaseSpicyAutoField(models.Field):
         **kwargs,
     ):
         if not self.NUM_BITS:
-            raise NotImplemented(
+            raise NotImplementedError(
                 "attempt to init abstract base class, or subclass has failed to set NUM_BITS"
             )
         if encoding not in CODECS_BY_ENCODING:
