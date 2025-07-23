@@ -54,7 +54,7 @@ class BaseSpicyAutoField(models.Field):
     def __init__(
         self,
         prefix,
-        sep="_",
+        sep="-",
         encoding=ENCODING_BASE_62,
         randomize=False,
         pad=False,
