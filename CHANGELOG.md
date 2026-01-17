@@ -2,8 +2,12 @@
 
 ## Current version (in development)
 
+* Breaking change: Drop support for Python 3.10 and 3.11. Python 3.12+ is now required.
+* Breaking change: Drop support for Django 3.2. Django 4.2+ is now required.
+* Add support for Python 3.13 and 3.14.
+* Add support for Django 5.2 and 6.0.
 * Internal: Switch Python code formatter/linter to [ruff](https://docs.astral.sh/ruff/).
-* Internal: Drop support for Python 3.9.
+* Internal: Switch to [uv](https://docs.astral.sh/uv/) for project management.
 
 ## v1.0.0 (2023-12-25)
 
