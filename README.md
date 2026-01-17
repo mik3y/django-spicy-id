@@ -76,15 +76,13 @@ For a more detailed look at this pattern, see Stripe's ["Object IDs: Designing A
 
 This package supports and is tested against the latest patch versions of:
 
-- **Python:** 3.10, 3.11, 3.12
-- **Django:** 3.2, 4.2
-- **MySQL:** 5.7, 8.0
-- **PostgreSQL:** 9.5, 10, 11, 12
+- **Python:** 3.12, 3.13, 3.14
+- **Django:** 4.2, 5.2, 6.0
+- **MySQL:** 8.0+
+- **PostgreSQL:** 14+
 - **SQLite:** 3.9.0+
 
 All database backends are tested with the latest versions of their drivers. SQLite is also tested on GitHub Actions' latest macOS virtual environment.
-
-**Note:** Django 4.x is recommended due to an [upstream bug](https://code.djangoproject.com/ticket/32442) that is present in 3.x. See [#6](https://github.com/mik3y/django-spicy-id/issues/6) for further details.
 
 ### Instructions
 
