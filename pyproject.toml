@@ -1,25 +1,31 @@
-[tool.poetry]
+[project]
 name = "django-spicy-id"
 version = "1.0.0"
 description = ""
-authors = ["mike wakerly <opensource@hoho.com>"]
+authors = [{ name = "mike wakerly", email = "opensource@hoho.com" }]
+requires-python = ">=3.12,<4"
 license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10.0"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.2"
-tox = "^4.17.1"
-setuptools = "^72.1.0"
-pytest-django = "^4.8.0"
-sphinx = "^8.0.2"
-twine = "^5.1.1"
-ruff = "^0.5.7"
+[dependency-groups]
+dev = [
+    "pytest>=8.3.2,<9",
+    "tox>=4.17.1,<5",
+    "setuptools>=72.1.0,<73",
+    "pytest-django>=4.8.0,<5",
+    "sphinx>=8.0.2,<9",
+    "twine>=5.1.1,<6",
+    "ruff>=0.5.7,<0.6",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.9.17,<0.10.0"]
+build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 100
