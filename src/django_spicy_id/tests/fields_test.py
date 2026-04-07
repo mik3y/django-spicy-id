@@ -1,6 +1,6 @@
 from unittest import mock
 
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.utils import ProgrammingError
 from django.test import TestCase
 
@@ -218,3 +218,34 @@ class TestFields(TestCase):
         o.save()
         self.assertEqual("ex_2", o.id)
         self.assertFalse(o._state.adding)
+
+    def test_full_clean_with_spicy_id(self):
+        """Ensures full_clean() works on a model instance with a spicy id."""
+        model = models.Model_WithDefaults
+        obj = model.objects.create()
+        self.assertEqual("ex_1", obj.id)
+        obj.full_clean()
+
+    @mock.patch("secrets.randbelow")
+    def test_full_clean_with_randomized_spicy_id(self, mock_secrets_randbelow):
+        """Ensures full_clean() works on a model with randomize=True."""
+        model = models.Base62Model_WithRandomize
+        mock_secrets_randbelow.return_value = 123456788
+        obj = model.objects.create()
+        self.assertEqual("ex_8M0kX", obj.id)
+        obj.full_clean()
+
+    def test_full_clean_rejects_invalid_spicy_id(self):
+        """Ensures full_clean() catches an invalid spicy id string."""
+        model = models.Model_WithDefaults
+        obj = model.objects.create()
+        obj.id = "wrong_prefix_123"
+        with self.assertRaises(ValidationError):
+            obj.full_clean()
+
+    def test_full_clean_validates_integer_value(self):
+        """Ensures full_clean() applies integer range validators for int values."""
+        model = models.Model_WithDefaults
+        obj = model.objects.create()
+        obj.id = 42
+        obj.full_clean()  # valid integer should pass
