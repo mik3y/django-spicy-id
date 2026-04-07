@@ -3,10 +3,11 @@ import re
 import secrets
 
 import django
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import models
 from django.db.models.signals import post_save
 from django.db.utils import ProgrammingError
+from django.utils.functional import cached_property
 
 from django_spicy_id.errors import MalformedSpicyIdError
 
@@ -146,6 +147,29 @@ class BaseSpicyAutoField(models.Field):
         # want public clients to depend on it).
         self._validate_string_internal(strval)
 
+    def _validate_spicy_id(self, value):
+        """Django validator for spicy id string values."""
+        try:
+            self._validate_string_internal(value)
+        except MalformedSpicyIdError as e:
+            raise ValidationError(str(e), code="invalid")
+
+    @cached_property
+    def validators(self):
+        # For integer values, defer to the parent IntegerField validators
+        # (min/max range checks). For string values, validate the spicy id
+        # format (prefix, separator, encoding, padding).
+        parent_validators = super().validators
+
+        def spicy_id_validator(value):
+            if isinstance(value, int):
+                for v in parent_validators:
+                    v(value)
+            elif isinstance(value, str):
+                self._validate_spicy_id(value)
+
+        return [spicy_id_validator]
+
     def from_db_value(self, value, expression, connection):
         if value is None:
             return None
@@ -169,7 +193,10 @@ class BaseSpicyAutoField(models.Field):
             return value
         elif isinstance(value, int):
             return self._to_string(value)
-        raise ProgrammingError(f"The value {repr(value)} is not valid for this field")
+        raise ValidationError(
+            f"The value {repr(value)} is not valid for this field",
+            code="invalid",
+        )
 
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
