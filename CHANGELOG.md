@@ -2,6 +2,7 @@
 
 ## Current version (in development)
 
+* Feature: Added `SpicyUUIDField`, a spicy id backed by a `UUIDField` column.
 * Bugfix: Fix `full_clean()` raising `TypeError` on models with spicy id fields.
 * Bugfix: `to_python()` now raises `ValidationError` instead of `ProgrammingError` for invalid values, matching Django's field contract.
 * Breaking change: Drop support for Python 3.10 and 3.11. Python 3.12+ is now required.

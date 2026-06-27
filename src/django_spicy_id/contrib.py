@@ -9,5 +9,10 @@ def monkey_patch_drf():
     from rest_framework.fields import CharField
     from rest_framework.serializers import ModelSerializer
 
-    for f in (fields.SpicyAutoField, fields.SpicyBigAutoField, fields.SpicySmallAutoField):
+    for f in (
+        fields.SpicyAutoField,
+        fields.SpicyBigAutoField,
+        fields.SpicySmallAutoField,
+        fields.SpicyUUIDField,
+    ):
         ModelSerializer.serializer_field_mapping[f] = CharField

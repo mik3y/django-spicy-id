@@ -121,6 +121,7 @@ True
 - `SpicyBigAutoField`: A spicy id which is backed by a `BigAutoField` (i.e. 64-bit int) column.
 - `SpicyAutoField`: A spicy id which is backed by a `AutoField` (i.e. 32-bit int) column.
 - `SpicySmallAutoField`: A spicy id which is backed by a `SmallAutoField` (i.e. 16-bit int) column.
+- `SpicyUUIDField`: A spicy id which is backed by a `UUIDField` (i.e. 128-bit) column. Unlike the auto fields, values are not database-generated; by default a random UUID (`uuid.uuid4`) is assigned to new rows.
 
 ### Required Parameters
 
@@ -134,6 +135,9 @@ In addition to all parameters you can provide a normal `AutoField`, each of the 
 
 - **`encoding`**: What numeric encoding scheme to use. One of `django_spicy_id.ENCODING_BASE_62` (default), `django_spicy_id.ENCODING_BASE_58`, or `django_spicy_id.ENCODING_HEX`.
 - **`sep`**: The separator character. Defaults to `_`. Can be any string.
+
+The auto field types (`SpicyAutoField`, `SpicyBigAutoField`, `SpicySmallAutoField`) additionally support:
+
 - **`pad`**: Whether the encoded portion of the id should be zero-padded so that all values are the same string length. Either `False` (default) or `True`.
   - Example without padding: `user_8M0kX`
   - Example with padding: `user_0000008M0kX`

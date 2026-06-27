@@ -1,6 +1,7 @@
 import math
 import re
 import secrets
+import uuid
 
 import django
 from django.core.exceptions import ImproperlyConfigured, ValidationError
@@ -259,3 +260,174 @@ class SpicySmallAutoField(BaseSpicyAutoField, models.SmallAutoField):
     """A Spicy ID field that is backed by a standard 16-bit Django SmallAutoField."""
 
     NUM_BITS = 16
+
+
+class SpicyUUIDField(models.UUIDField):
+    """A UUIDField that is rendered as a prefixed, encoded string."""
+
+    def __init__(
+        self,
+        prefix,
+        sep="_",
+        encoding=ENCODING_BASE_62,
+        *args,
+        **kwargs,
+    ):
+        if encoding not in CODECS_BY_ENCODING:
+            raise ImproperlyConfigured(f'unknown encoding "{encoding}"')
+        if not isinstance(prefix, str):
+            raise ImproperlyConfigured("prefix must be a string")
+        if not isinstance(sep, str):
+            raise ImproperlyConfigured("sep must be a string")
+        if not sep.isascii():
+            raise ImproperlyConfigured("sep must be ascii")
+        if not LEGAL_PREFIX_RE.match(prefix):
+            raise ImproperlyConfigured(
+                "prefix: only ascii numbers and letters allowed, must start with a letter"
+            )
+
+        self.prefix = prefix
+        self.sep = sep
+        self.encoding = encoding
+        self.codec = CODECS_BY_ENCODING[self.encoding]
+
+        max_value = 2**128 - 1
+        self.max_characters = math.ceil(math.log(max_value, len(self.codec.digits)))
+        self.re = get_regex(f"{self.prefix}{self.sep}", self.codec, False, self.max_characters)
+        self.re_pattern = self.re.pattern[1:-1]
+
+        kwargs.setdefault("default", uuid.uuid4)
+        super().__init__(*args, **kwargs)
+
+    def _to_string(self, uid):
+        if not isinstance(uid, uuid.UUID):
+            uid = uuid.UUID(uid) if isinstance(uid, str) else uuid.UUID(int=uid)
+        encoded = self.codec.encode(uid.int)
+        return f"{self.prefix}{self.sep}{encoded}"
+
+    def _validate_string_internal(self, s):
+        if not isinstance(s, str):
+            raise MalformedSpicyIdError("value must be a string")
+        if not s:
+            raise MalformedSpicyIdError("value must be non-empty")
+        m = self.re.match(s)
+        if not m:
+            raise MalformedSpicyIdError(
+                f"value does not match expected regex {repr(self.re.pattern)}"
+            )
+        _, encoded = m.groups()
+        return encoded
+
+    def validate_string(self, strval):
+        """Validates a string against this field's config.
+
+        Raises `MalformedSpicyIdError` on any error.
+        """
+        self._validate_string_internal(strval)
+
+    def _validate_spicy_id(self, value):
+        try:
+            self._validate_string_internal(value)
+        except MalformedSpicyIdError as e:
+            raise ValidationError(str(e), code="invalid")
+
+    @cached_property
+    def validators(self):
+        def spicy_id_validator(value):
+            if isinstance(value, str):
+                self._validate_spicy_id(value)
+
+        return [spicy_id_validator]
+
+    def from_db_value(self, value, expression, connection):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = uuid.UUID(value)
+        return self._to_string(value)
+
+    def _to_uuid(self, value):
+        """Converts a value to a uuid.UUID, accepting spicy strings, UUID objects, and raw strings."""
+        if isinstance(value, uuid.UUID):
+            return value
+        if isinstance(value, str):
+            if self.re.match(value):
+                encoded = self._validate_string_internal(value)
+                int_value = self.codec.decode(encoded)
+                return uuid.UUID(int=int_value)
+            return uuid.UUID(value)
+        return None
+
+    def get_prep_value(self, value):
+        if not value:
+            return None
+        if isinstance(value, uuid.UUID):
+            return value
+        if isinstance(value, str):
+            try:
+                return self._to_uuid(value)
+            except (MalformedSpicyIdError, ValueError) as e:
+                raise ProgrammingError(f"the value {repr(value)} is not valid: {e}")
+        return value
+
+    def get_db_prep_value(self, value, connection, prepared=False):
+        if value is None:
+            return None
+        if not isinstance(value, uuid.UUID):
+            try:
+                value = self._to_uuid(value)
+            except (MalformedSpicyIdError, ValueError):
+                value = uuid.UUID(value) if isinstance(value, str) else value
+        if connection.features.has_native_uuid_field:
+            return value
+        return value.hex
+
+    def to_python(self, value):
+        if value is None:
+            return None
+        if isinstance(value, str) and self.re.match(value):
+            return value
+        if isinstance(value, uuid.UUID):
+            return self._to_string(value)
+        if isinstance(value, str):
+            try:
+                return self._to_string(uuid.UUID(value))
+            except (AttributeError, ValueError):
+                raise ValidationError(
+                    f"The value {repr(value)} is not valid for this field",
+                    code="invalid",
+                )
+        raise ValidationError(
+            f"The value {repr(value)} is not valid for this field",
+            code="invalid",
+        )
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        kwargs["prefix"] = self.prefix
+        kwargs["sep"] = self.sep
+        kwargs["encoding"] = self.encoding
+        if "default" in kwargs and kwargs["default"] is uuid.uuid4:
+            del kwargs["default"]
+        return name, path, args, kwargs
+
+    def contribute_to_class(self, cls, name, **kwargs):
+        super().contribute_to_class(cls, name, **kwargs)
+
+        def spicy_uuid_post_save(sender, instance, created, raw, **kwargs):
+            if raw:
+                return
+            nonlocal name
+            val = getattr(instance, name)
+            if isinstance(val, uuid.UUID):
+                setattr(instance, name, self._to_string(val))
+
+        post_save.connect(spicy_uuid_post_save, sender=cls, weak=False)
+
+    def pre_save(self, model_instance, add):
+        value = getattr(model_instance, self.attname)
+        if isinstance(value, str) and self.re.match(value):
+            uid = self._to_uuid(value)
+            setattr(model_instance, self.attname, uid)
+            return uid
+        return super().pre_save(model_instance, add)
