@@ -21,6 +21,7 @@ dev = [
     "sphinx>=8.0.2,<9",
     "twine>=5.1.1,<6",
     "ruff>=0.5.7,<0.6",
+    "django>=6.0.5",
 ]
 
 [build-system]

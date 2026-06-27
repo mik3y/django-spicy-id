@@ -1,10 +1,11 @@
+import uuid
 from unittest import mock
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.utils import ProgrammingError
 from django.test import TestCase
 
-from django_spicy_id import SpicyAutoField
+from django_spicy_id import SpicyAutoField, SpicyUUIDField
 from django_spicy_id.fields import LEGAL_PREFIX_RE
 from django_spicy_id.tests import models
 
@@ -249,3 +250,87 @@ class TestFields(TestCase):
         obj = model.objects.create()
         obj.id = 42
         obj.full_clean()  # valid integer should pass
+
+
+class TestSpicyUUIDField(TestCase):
+    TEST_UUID = uuid.UUID("12345678-1234-5678-1234-567812345678")
+    TEST_UUID_B62 = "uu_YLmNWW2NwaipfRR50HIPA"
+    TEST_UUID_HEX = "uu_12345678123456781234567812345678"
+    TEST_UUID_B58 = "uu_3FP9SaFPBg7Kw7fetjn6cF"
+
+    def test_uuid_model_with_defaults(self):
+        model = models.UUIDModel_WithDefaults
+
+        obj = model.objects.create()
+        self.assertTrue(obj.id.startswith("uu_"))
+        self.assertIsInstance(obj.id, str)
+
+    def test_uuid_model_create_by_uuid(self):
+        model = models.UUIDModel_WithDefaults
+
+        obj = model.objects.create(id=self.TEST_UUID)
+        self.assertEqual(self.TEST_UUID_B62, obj.id)
+
+        obj.delete()
+        obj2 = model.objects.create(id=self.TEST_UUID)
+        self.assertEqual(self.TEST_UUID_B62, obj2.id)
+
+    def test_uuid_model_create_by_string(self):
+        model = models.UUIDModel_WithDefaults
+
+        obj = model.objects.create(id=self.TEST_UUID_B62)
+        self.assertEqual(self.TEST_UUID_B62, obj.id)
+
+    def test_uuid_model_roundtrip(self):
+        model = models.UUIDModel_WithDefaults
+
+        obj = model.objects.create(id=self.TEST_UUID)
+        self.assertEqual(self.TEST_UUID_B62, obj.id)
+
+        retrieved = model.objects.filter(pk=self.TEST_UUID_B62).first()
+        self.assertIsNotNone(retrieved)
+        self.assertEqual(self.TEST_UUID_B62, retrieved.id)
+
+    def test_hex_encoding(self):
+        model = models.UUIDModel_Hex
+
+        obj = model.objects.create(id=self.TEST_UUID)
+        self.assertEqual(self.TEST_UUID_HEX, obj.id)
+
+    def test_base58_encoding(self):
+        model = models.UUIDModel_Base58
+
+        obj = model.objects.create(id=self.TEST_UUID)
+        self.assertEqual(self.TEST_UUID_B58, obj.id)
+
+    def test_fetch_by_string(self):
+        model = models.UUIDModel_WithDefaults
+
+        model.objects.create(id=self.TEST_UUID)
+        retrieved = model.objects.filter(pk=self.TEST_UUID_B62).first()
+        self.assertEqual(self.TEST_UUID_B62, retrieved.id)
+
+    def test_invalid_string_rejected(self):
+        model = models.UUIDModel_WithDefaults
+        with self.assertRaises(ProgrammingError):
+            model.objects.filter(pk="wrong_abc").first()
+
+    def test_full_clean(self):
+        model = models.UUIDModel_WithDefaults
+        obj = model.objects.create(id=self.TEST_UUID)
+        self.assertEqual(self.TEST_UUID_B62, obj.id)
+        obj.full_clean()
+
+    def test_full_clean_rejects_invalid(self):
+        model = models.UUIDModel_WithDefaults
+        obj = model.objects.create(id=self.TEST_UUID)
+        obj.id = "wrong_prefix_123"
+        with self.assertRaises(ValidationError):
+            obj.full_clean()
+
+    def test_deconstruct(self):
+        field = SpicyUUIDField(prefix="uu", sep="-", encoding="hex")
+        name, path, args, kwargs = field.deconstruct()
+        self.assertEqual(kwargs["prefix"], "uu")
+        self.assertEqual(kwargs["sep"], "-")
+        self.assertEqual(kwargs["encoding"], "hex")
