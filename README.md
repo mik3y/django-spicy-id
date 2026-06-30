@@ -34,6 +34,7 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
     - [`django_spicy_id.MalformedSpicyIdError`](#django_spicy_idmalformedspicyiderror)
 - [Tips and tricks](#tips-and-tricks)
   - [Don't change field configuration](#dont-change-field-configuration)
+- [Releasing](#releasing)
 - [Changelog](#changelog)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -256,6 +257,31 @@ Changing `prefix`, `sep`, `pad`, or `encoding` after you have started using the 
 Although the stored row IDs are never changed, any spicy IDs generated previously, with a different encoding configuration, may now be invalid or (potentially catastrophically) resolve to a different object.
 
 For just one example, `user_10` would naturally refer to a different numeric row id if parsed as `hex` versus `base62` or `base58`. You should avoid changing the field configuration.
+
+## Releasing
+
+To cut a new release, run the `bump` tool:
+
+```
+make bump       # bumps the patch version (default)
+make bump minor # bumps the minor version
+make bump major # bumps the major version
+```
+
+Equivalently, you can call the script directly:
+
+```
+./scripts/bump.py [patch|minor|major]
+```
+
+`bump` will:
+
+1. Increment `version` in `pyproject.toml` (patch by default).
+2. Stamp the pending changelog section (`## Current version ...`) in `CHANGELOG.md` with the new version and today's date, and open a fresh pending section for the next release.
+3. Run `pre-commit` over the changed files (re-staging anything it reformats).
+4. Create a commit named `vX.Y.Z` and a matching git tag.
+
+Nothing is pushed automatically. Review the commit and tag, then `git push && git push --tags` when you're happy.
 
 ## Changelog
 
