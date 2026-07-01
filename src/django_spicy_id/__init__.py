@@ -12,15 +12,15 @@ from .fields import (
 from .utils import get_url_converter
 
 __all__ = [
-    SpicySmallAutoField,
-    SpicyAutoField,
-    SpicyBigAutoField,
-    SpicyUUIDField,
-    ENCODING_BASE_58,
-    ENCODING_HEX,
-    ENCODING_BASE_62,
-    SpicyIdError,
-    MalformedSpicyIdError,
-    get_url_converter,
-    monkey_patch_drf,
+    "SpicySmallAutoField",
+    "SpicyAutoField",
+    "SpicyBigAutoField",
+    "SpicyUUIDField",
+    "ENCODING_BASE_58",
+    "ENCODING_HEX",
+    "ENCODING_BASE_62",
+    "SpicyIdError",
+    "MalformedSpicyIdError",
+    "get_url_converter",
+    "monkey_patch_drf",
 ]
