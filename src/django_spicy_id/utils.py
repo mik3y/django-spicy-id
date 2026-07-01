@@ -20,5 +20,11 @@ class SpicyUrlConverter:
 
 
 def get_url_converter(model, field_name):
+    """Returns a Django path-converter class for `field_name` on `model`.
+
+    Register the result with `django.urls.register_converter` so that only valid
+    ids for that field match in your URL patterns. See "Registering URLs" in the
+    README for example usage.
+    """
     field = model._meta.get_field(field_name)
     return lambda: SpicyUrlConverter(field.re_pattern)

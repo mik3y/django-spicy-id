@@ -265,22 +265,41 @@ class BaseSpicyAutoField(models.Field):
 
 
 class SpicyBigAutoField(BaseSpicyAutoField, models.BigAutoField):
-    """A Spicy ID field that is backed by a standard 64-bit Django BigAutoField."""
+    """A "spicy" typed ID backed by a 64-bit `BigAutoField` column.
+
+    Behaves like a normal `BigAutoField`, the stored value is a database-generated
+    integer, but it is displayed and queried as a prefixed string such as
+    `user_8M0kX`.
+
+    Arguments:
+        prefix: The type prefix shown on every id, e.g. `user`. Required.
+        sep: The separator between the prefix and the encoded value. Defaults to `_`.
+        encoding: How the integer value is encoded. One of `ENCODING_BASE_62`
+            (default), `ENCODING_BASE_58`, `ENCODING_BASE_32`, or `ENCODING_HEX`.
+        pad: If `True`, zero-pad the encoded value so all ids are the same length.
+            Defaults to `False`.
+        randomize: If `True`, assign a random (rather than sequential) value on
+            insert, using `secrets`. Defaults to `False`.
+    """
 
     NUM_BITS = 64
 
 
 class SpicyAutoField(BaseSpicyAutoField, models.AutoField):
-    """A Spicy ID field that is backed by a standard 32-bit Django AutoField."""
+    """A "spicy" typed ID backed by a 32-bit `AutoField` column.
+
+    Takes the same arguments as `SpicyBigAutoField`.
+    """
 
     NUM_BITS = 32
 
 
 class SpicySmallAutoField(BaseSpicyAutoField, models.SmallAutoField):
-    """A Spicy ID field that is backed by a standard 16-bit Django SmallAutoField.
+    """A "spicy" typed ID backed by a 16-bit `SmallAutoField` column.
 
-    .. deprecated::
-        Scheduled for removal in v2.0.0. Use `SpicyAutoField` instead.
+    Takes the same arguments as `SpicyBigAutoField`.
+
+    **Deprecated:** scheduled for removal in v2.0.0. Use `SpicyAutoField` instead.
     """
 
     NUM_BITS = 16
@@ -296,10 +315,19 @@ class SpicySmallAutoField(BaseSpicyAutoField, models.SmallAutoField):
 
 
 class SpicyUUIDField(models.UUIDField):
-    """A UUIDField that is rendered as a prefixed, encoded string.
+    """A "spicy" typed ID backed by a 128-bit `UUIDField` column.
 
-    .. deprecated::
-        Scheduled for removal in v2.0.0. Use `TypeIDField` instead.
+    **Deprecated:** scheduled for removal in v2.0.0. Use `TypeIDField` instead.
+
+    Unlike the auto fields, the value is not database-generated; a random
+    `uuid.uuid4` is assigned to new rows by default. It is displayed and queried
+    as a prefixed, encoded string.
+
+    Arguments:
+        prefix: The type prefix shown on every id, e.g. `user`. Required.
+        sep: The separator between the prefix and the encoded value. Defaults to `_`.
+        encoding: How the UUID is encoded. One of `ENCODING_BASE_62` (default),
+            `ENCODING_BASE_58`, `ENCODING_BASE_32`, or `ENCODING_HEX`.
     """
 
     def __init__(
@@ -489,18 +517,21 @@ class SpicyUUIDField(models.UUIDField):
 
 
 class TypeIDField(SpicyUUIDField):
-    """A `SpicyUUIDField` that emits and parses TypeID-compatible strings.
+    """A field implementing the TypeID spec, backed by a `UUIDField` column.
 
     TypeIDs (https://github.com/jetify-com/typeid) are UUIDv7 values rendered in
     Crockford base32 with a lowercase snake_case type prefix, e.g.
     `user_01h455vb4pex5vsknk084sn02q`. This field produces and accepts exactly
-    that format while still storing the value in a native UUID column.
+    that format while storing the value as a native UUID.
 
-    Unlike the parent field, the `encoding` (base32), `sep` (`_`), and the fixed
-    26-character zero padding are all mandated by the spec and are not
-    configurable. The `prefix` follows the TypeID prefix rules (lowercase ascii
-    `[a-z_]`, at most 63 characters, starting and ending with a letter) and may
-    be empty, in which case the separator is omitted.
+    The `encoding` (base32), separator (`_`), and fixed 26-character zero padding
+    are all mandated by the spec and are not configurable. New rows default to a
+    freshly generated UUIDv7 (see `uuid7`).
+
+    Arguments:
+        prefix: The type prefix, following the TypeID rules: lowercase ascii
+            `[a-z_]`, at most 63 characters, starting and ending with a letter.
+            May be empty, in which case the separator is omitted.
     """
 
     def __init__(self, prefix="", *args, **kwargs):
