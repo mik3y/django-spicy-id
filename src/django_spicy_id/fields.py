@@ -1,4 +1,3 @@
-import math
 import re
 import secrets
 import uuid
@@ -28,6 +27,19 @@ CODECS_BY_ENCODING = {
 
 # Validates acceptable values for the `prefix=` field parameter.
 LEGAL_PREFIX_RE = re.compile("^[a-zA-Z][0-9a-zA-Z]*$")
+
+
+def num_digits(value, base):
+    """Returns the exact number of base-`base` digits needed to represent `value`.
+
+    Uses integer arithmetic rather than `math.log`, which can be off by one near
+    powers of the base due to floating-point rounding.
+    """
+    digits = 1
+    while value >= base:
+        value //= base
+        digits += 1
+    return digits
 
 
 def get_regex(preamble, codec, pad, char_len):
@@ -96,7 +108,7 @@ class BaseSpicyAutoField(models.Field):
         self.encoding = encoding
         self.codec = CODECS_BY_ENCODING[self.encoding]
         self.max_value = 2 ** (self.NUM_BITS - 1) - 1
-        self.max_characters = math.ceil(math.log(self.max_value, len(self.codec.digits)))
+        self.max_characters = num_digits(self.max_value, len(self.codec.digits))
         self.re = get_regex(f"{self.prefix}{self.sep}", self.codec, self.pad, self.max_characters)
 
         # Expose the re pattern without word boundaries, for use in places where they
@@ -122,8 +134,8 @@ class BaseSpicyAutoField(models.Field):
         return self._to_string(self._generate_random_default_value())
 
     def _generate_random_default_value(self):
-        """Generates a random value on the range [1, self.max_value)."""
-        return 1 + secrets.randbelow(self.max_value - 1)
+        """Generates a random value on the range [1, self.max_value]."""
+        return 1 + secrets.randbelow(self.max_value)
 
     def _validate_string_internal(self, s):
         if not isinstance(s, str):
@@ -136,6 +148,14 @@ class BaseSpicyAutoField(models.Field):
                 f"value does not match expected regex {repr(self.re.pattern)}"
             )
         _, encoded = m.groups()
+        # The regex bounds the character length, but a max-length string can still
+        # decode to a value larger than the backing column can hold. Enforce the
+        # numeric range here so out-of-range ids are rejected before reaching the DB.
+        value = self.codec.decode(encoded)
+        if not 0 <= value <= self.max_value:
+            raise MalformedSpicyIdError(
+                f"decoded value {value} is out of range (must be 0..{self.max_value})"
+            )
         return encoded
 
     def validate_string(self, strval):
@@ -159,7 +179,7 @@ class BaseSpicyAutoField(models.Field):
     def validators(self):
         # For integer values, defer to the parent IntegerField validators
         # (min/max range checks). For string values, validate the spicy id
-        # format (prefix, separator, encoding, padding).
+        # format (prefix, separator, encoding, padding) and decoded numeric range.
         parent_validators = super().validators
 
         def spicy_id_validator(value):
@@ -191,6 +211,7 @@ class BaseSpicyAutoField(models.Field):
         if not value:
             return super().to_python(value)
         elif isinstance(value, str) and self.re.match(value):
+            self._validate_spicy_id(value)  # also enforces the numeric range
             return value
         elif isinstance(value, int):
             return self._to_string(value)
@@ -292,7 +313,7 @@ class SpicyUUIDField(models.UUIDField):
         self.codec = CODECS_BY_ENCODING[self.encoding]
 
         max_value = 2**128 - 1
-        self.max_characters = math.ceil(math.log(max_value, len(self.codec.digits)))
+        self.max_characters = num_digits(max_value, len(self.codec.digits))
         self.re = get_regex(f"{self.prefix}{self.sep}", self.codec, False, self.max_characters)
         self.re_pattern = self.re.pattern[1:-1]
 
@@ -316,6 +337,13 @@ class SpicyUUIDField(models.UUIDField):
                 f"value does not match expected regex {repr(self.re.pattern)}"
             )
         _, encoded = m.groups()
+        # A max-length string can decode above the 128-bit UUID range; reject it
+        # here rather than letting `uuid.UUID(int=...)` raise deep in the stack.
+        value = self.codec.decode(encoded)
+        if not 0 <= value < 2**128:
+            raise MalformedSpicyIdError(
+                f"decoded value {value} is out of range for a UUID (must be < 2**128)"
+            )
         return encoded
 
     def validate_string(self, strval):
@@ -386,6 +414,7 @@ class SpicyUUIDField(models.UUIDField):
         if value is None:
             return None
         if isinstance(value, str) and self.re.match(value):
+            self._validate_spicy_id(value)  # also enforces the 128-bit range
             return value
         if isinstance(value, uuid.UUID):
             return self._to_string(value)

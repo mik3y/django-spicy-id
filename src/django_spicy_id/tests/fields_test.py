@@ -5,7 +5,7 @@ from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.utils import ProgrammingError
 from django.test import TestCase
 
-from django_spicy_id import SpicyAutoField, SpicyUUIDField
+from django_spicy_id import MalformedSpicyIdError, SpicyAutoField, SpicyUUIDField
 from django_spicy_id.fields import LEGAL_PREFIX_RE
 from django_spicy_id.tests import models
 
@@ -58,6 +58,24 @@ class TestFields(TestCase):
             ImproperlyConfigured, "cannot provide both `randomize` and `default`"
         ):
             SpicyAutoField(prefix="ex", default=123, randomize=True)
+
+    def test_rejects_out_of_range_string(self):
+        """A regex-valid but numerically over-range id is rejected before the DB."""
+        field = SpicyAutoField(prefix="ex")  # 32-bit, base62 -> max 6 characters
+        over_range = "ex_zzzzzz"  # 6 chars, but decodes above 2**31 - 1
+        with self.assertRaises(MalformedSpicyIdError):
+            field.validate_string(over_range)
+        with self.assertRaises(ProgrammingError):
+            field.get_prep_value(over_range)
+        with self.assertRaises(ValidationError):
+            field.to_python(over_range)
+
+    def test_padded_zero_is_accepted(self):
+        """A padded field accepts the all-zero id; 0 is a legal integer value."""
+        field = SpicyAutoField(prefix="ex", pad=True)
+        zero = "ex_" + "0" * field.max_characters
+        field.validate_string(zero)  # must not raise
+        self.assertEqual(0, field.get_prep_value(zero))
 
     def test_model_with_defaults(self):
         model = models.Model_WithDefaults
@@ -145,7 +163,7 @@ class TestFields(TestCase):
         mock_secrets_randbelow.return_value = 123456788
         o = model.objects.create()
         self.assertEqual("ex_8M0kX", o.id)
-        mock_secrets_randbelow.assert_called_with(2**63 - 2)
+        mock_secrets_randbelow.assert_called_with(2**63 - 1)
         o = model.objects.create(id=7)
         self.assertEqual("ex_7", o.id)
 
@@ -156,7 +174,7 @@ class TestFields(TestCase):
         mock_secrets_randbelow.return_value = 123456788
         o = model.objects.create()
         self.assertEqual("ex_75bcd15", o.id)
-        mock_secrets_randbelow.assert_called_with(2**63 - 2)
+        mock_secrets_randbelow.assert_called_with(2**63 - 1)
         o = model.objects.create(id=7)
         self.assertEqual("ex_7", o.id)
 
@@ -327,6 +345,17 @@ class TestSpicyUUIDField(TestCase):
         obj.id = "wrong_prefix_123"
         with self.assertRaises(ValidationError):
             obj.full_clean()
+
+    def test_rejects_out_of_range_string(self):
+        """A regex-valid string that decodes above the 128-bit range is rejected."""
+        field = SpicyUUIDField(prefix="uu")  # base62 -> max 22 characters
+        over_range = "uu_" + "z" * 22  # decodes above 2**128
+        with self.assertRaises(MalformedSpicyIdError):
+            field.validate_string(over_range)
+        with self.assertRaises(ProgrammingError):
+            field.get_prep_value(over_range)
+        with self.assertRaises(ValidationError):
+            field.to_python(over_range)
 
     def test_deconstruct(self):
         field = SpicyUUIDField(prefix="uu", sep="-", encoding="hex")
