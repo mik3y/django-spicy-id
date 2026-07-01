@@ -14,5 +14,6 @@ def monkey_patch_drf():
         fields.SpicyBigAutoField,
         fields.SpicySmallAutoField,
         fields.SpicyUUIDField,
+        fields.TypeIDField,
     ):
         ModelSerializer.serializer_field_mapping[f] = CharField

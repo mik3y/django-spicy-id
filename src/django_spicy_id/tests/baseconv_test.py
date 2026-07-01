@@ -21,15 +21,20 @@ Adapted from `django.utils.baseconv` which bears the following license:
 
 from unittest import TestCase
 
-from django_spicy_id.baseconv import BaseConverter, base16, base58, base62
+from django_spicy_id.baseconv import BaseConverter, base16, base32_crockford, base58, base62
 
 
 class TestBaseConv(TestCase):
     def test_baseconv(self):
         nums = [-(10**10), 10**10, *range(-100, 100)]
-        for converter in [base16, base58, base62]:
+        for converter in [base16, base32_crockford, base58, base62]:
             for i in nums:
                 self.assertEqual(i, converter.decode(converter.encode(i)))
+
+    def test_base32_crockford(self):
+        # Alphabet omits the ambiguous letters i, l, o, u.
+        self.assertEqual(base32_crockford.encode(1234), "16j")
+        self.assertEqual(base32_crockford.decode("16j"), 1234)
 
     def test_base11(self):
         base11 = BaseConverter("0123456789-", sign="$")

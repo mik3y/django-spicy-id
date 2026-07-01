@@ -1,5 +1,6 @@
 import re
 import secrets
+import time
 import uuid
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
@@ -14,18 +15,27 @@ from . import baseconv
 
 # Encoding strategies which may be selected with the `encoding=` field parameter.
 ENCODING_HEX = "hex"
+ENCODING_BASE_32 = "b32"
 ENCODING_BASE_58 = "b58"
 ENCODING_BASE_62 = "b62"
 
 # Maps encoding strategy to its encoder/decoder.
 CODECS_BY_ENCODING = {
     ENCODING_HEX: baseconv.base16,
+    ENCODING_BASE_32: baseconv.base32_crockford,
     ENCODING_BASE_58: baseconv.base58,
     ENCODING_BASE_62: baseconv.base62,
 }
 
 # Validates acceptable values for the `prefix=` field parameter.
 LEGAL_PREFIX_RE = re.compile("^[a-zA-Z][0-9a-zA-Z]*$")
+
+# TypeID (https://github.com/jetify-com/typeid) constraints. The suffix is always
+# exactly 26 base32 characters, and the prefix is lowercase snake_case ascii of at
+# most 63 characters that starts and ends with a letter (or is empty).
+TYPEID_SUFFIX_LEN = 26
+TYPEID_MAX_PREFIX_LEN = 63
+LEGAL_TYPEID_PREFIX_RE = re.compile(r"^([a-z]([a-z_]{0,61}[a-z])?)?$")
 
 
 def num_digits(value, base):
@@ -39,6 +49,26 @@ def num_digits(value, base):
         value //= base
         digits += 1
     return digits
+
+
+def uuid7():
+    """Returns a new UUIDv7 (time-ordered), per RFC 9562.
+
+    Delegates to the stdlib `uuid.uuid7` when available (Python 3.14+); otherwise
+    builds one from a millisecond timestamp plus random bits. Used as the default
+    value generator for `TypeIDField`, since the TypeID spec requires
+    generated ids to decode to a valid UUIDv7.
+    """
+    if hasattr(uuid, "uuid7"):
+        return uuid.uuid7()
+
+    unix_ms = time.time_ns() // 1_000_000
+    value = (unix_ms & 0xFFFFFFFFFFFF) << 80  # 48-bit timestamp
+    value |= 0x7 << 76  # 4-bit version
+    value |= secrets.randbits(12) << 64  # 12 bits rand_a
+    value |= 0b10 << 62  # 2-bit variant
+    value |= secrets.randbits(62)  # 62 bits rand_b
+    return uuid.UUID(int=value)
 
 
 def get_regex(preamble, codec, pad, char_len):
@@ -231,6 +261,7 @@ class BaseSpicyAutoField(models.Field):
             # the higher-level feature `randomize` is enabled.
             del kwargs["default"]
         return name, path, args, kwargs
+
 
 class SpicyBigAutoField(BaseSpicyAutoField, models.BigAutoField):
     """A Spicy ID field that is backed by a standard 64-bit Django BigAutoField."""
@@ -427,3 +458,71 @@ class SpicyUUIDField(models.UUIDField):
             # instance, so a failed save doesn't leave a raw UUID on it.
             return self._to_uuid(value)
         return super().pre_save(model_instance, add)
+
+
+class TypeIDField(SpicyUUIDField):
+    """A `SpicyUUIDField` that emits and parses TypeID-compatible strings.
+
+    TypeIDs (https://github.com/jetify-com/typeid) are UUIDv7 values rendered in
+    Crockford base32 with a lowercase snake_case type prefix, e.g.
+    `user_01h455vb4pex5vsknk084sn02q`. This field produces and accepts exactly
+    that format while still storing the value in a native UUID column.
+
+    Unlike the parent field, the `encoding` (base32), `sep` (`_`), and the fixed
+    26-character zero padding are all mandated by the spec and are not
+    configurable. The `prefix` follows the TypeID prefix rules (lowercase ascii
+    `[a-z_]`, at most 63 characters, starting and ending with a letter) and may
+    be empty, in which case the separator is omitted.
+    """
+
+    def __init__(self, prefix="", *args, **kwargs):
+        if not isinstance(prefix, str):
+            raise ImproperlyConfigured("prefix must be a string")
+        if len(prefix) > TYPEID_MAX_PREFIX_LEN:
+            raise ImproperlyConfigured(
+                f"prefix: must be at most {TYPEID_MAX_PREFIX_LEN} characters"
+            )
+        if not LEGAL_TYPEID_PREFIX_RE.match(prefix):
+            raise ImproperlyConfigured(
+                "prefix: TypeID prefixes must be empty or lowercase ascii [a-z_], "
+                "starting and ending with a letter"
+            )
+        # `sep` and `encoding` are dictated by the spec; reject attempts to set them
+        # so a misconfiguration fails loudly rather than silently being ignored.
+        for fixed in ("sep", "encoding"):
+            if fixed in kwargs:
+                raise ImproperlyConfigured(f"`{fixed}` is not configurable on a TypeID field")
+
+        self.prefix = prefix
+        self.sep = "_"
+        self.encoding = ENCODING_BASE_32
+        self.codec = CODECS_BY_ENCODING[self.encoding]
+        self.max_characters = TYPEID_SUFFIX_LEN
+
+        # The separator is omitted entirely when the prefix is empty.
+        preamble = f"{self.prefix}{self.sep}" if self.prefix else ""
+        self.re = get_regex(preamble, self.codec, True, TYPEID_SUFFIX_LEN)
+        self.re_pattern = self.re.pattern[1:-1]
+
+        kwargs.setdefault("default", uuid7)
+        # Bypass SpicyUUIDField.__init__, whose prefix/encoding rules differ; the
+        # setup above is the TypeID-specific equivalent.
+        models.UUIDField.__init__(self, *args, **kwargs)
+
+    def _to_string(self, uid):
+        if not isinstance(uid, uuid.UUID):
+            uid = uuid.UUID(uid) if isinstance(uid, str) else uuid.UUID(int=uid)
+        encoded = self.codec.encode(uid.int).rjust(TYPEID_SUFFIX_LEN, self.codec.digits[0])
+        if not self.prefix:
+            return encoded
+        return f"{self.prefix}{self.sep}{encoded}"
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        # `sep` and `encoding` are implied by the field type and rejected by
+        # __init__, so they must not be emitted into migrations.
+        kwargs.pop("sep", None)
+        kwargs.pop("encoding", None)
+        if "default" in kwargs and kwargs["default"] is uuid7:
+            del kwargs["default"]
+        return name, path, args, kwargs

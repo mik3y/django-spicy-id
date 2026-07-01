@@ -1,6 +1,11 @@
 from django.db import models
 
-from django_spicy_id import SpicyAutoField, SpicyBigAutoField, SpicyUUIDField
+from django_spicy_id import (
+    SpicyAutoField,
+    SpicyBigAutoField,
+    SpicyUUIDField,
+    TypeIDField,
+)
 
 
 class Model_WithDefaults(models.Model):
@@ -47,3 +52,11 @@ class UUIDModel_Hex(models.Model):
 
 class UUIDModel_Base58(models.Model):
     id = SpicyUUIDField("uu", primary_key=True, encoding="b58")
+
+
+class TypeIDModel(models.Model):
+    id = TypeIDField("prefix", primary_key=True)
+
+
+class TypeIDModel_NoPrefix(models.Model):
+    id = TypeIDField(primary_key=True)

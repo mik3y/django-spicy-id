@@ -20,6 +20,9 @@ Adapted from `django.utils.baseconv` which bears the following license:
 """
 
 BASE16_ALPHABET = "0123456789abcdef"
+# Crockford's base32 alphabet, as used by the TypeID spec: lowercase, with the
+# ambiguous letters i, l, o, and u omitted.
+BASE32_CROCKFORD_ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz"
 BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 BASE62_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
@@ -77,5 +80,6 @@ class BaseConverter:
 
 
 base16 = BaseConverter(BASE16_ALPHABET)
+base32_crockford = BaseConverter(BASE32_CROCKFORD_ALPHABET)
 base58 = BaseConverter(BASE58_ALPHABET)
 base62 = BaseConverter(BASE62_ALPHABET)

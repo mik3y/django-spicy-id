@@ -2,6 +2,9 @@
 
 ## Current version (in development)
 
+* Feature: Added `TypeIDField`, a [TypeID](https://github.com/jetify-com/typeid)-compatible spicy id (UUIDv7 in Crockford base32 with a lowercase snake_case prefix) backed by a `UUIDField` column. Validated against the TypeID spec's official conformance vectors.
+* Feature: Added the `ENCODING_BASE_32` (Crockford base32) encoding and the `uuid7()` helper.
+
 ## v1.1.0 (2026-07-01)
 
 * Feature: Added `SpicyUUIDField`, a spicy id backed by a `UUIDField` column.
