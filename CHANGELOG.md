@@ -7,6 +7,7 @@
 * Bugfix: `to_python()` now raises `ValidationError` instead of `ProgrammingError` for invalid values, matching Django's field contract.
 * Bugfix: `from django_spicy_id import *` no longer raises `TypeError`.
 * Bugfix: Field prefixes containing hyphens are now correctly rejected, as documented.
+* Bugfix: Enforce the valid id range — ids that decode outside the field's bounds are rejected up front with a clear error instead of failing at the database, and the full range is usable (including the maximum value and `0`).
 * Breaking change: Drop support for Python 3.10 and 3.11. Python 3.12+ is now required.
 * Breaking change: Drop support for Django 3.2. Django 4.2+ is now required.
 * Add support for Python 3.13 and 3.14.
