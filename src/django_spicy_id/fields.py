@@ -423,7 +423,7 @@ class SpicyUUIDField(models.UUIDField):
     def pre_save(self, model_instance, add):
         value = getattr(model_instance, self.attname)
         if isinstance(value, str) and self.re.match(value):
-            uid = self._to_uuid(value)
-            setattr(model_instance, self.attname, uid)
-            return uid
+            # Return the decoded UUID for the query without mutating the
+            # instance, so a failed save doesn't leave a raw UUID on it.
+            return self._to_uuid(value)
         return super().pre_save(model_instance, add)
