@@ -1,11 +1,18 @@
 import uuid
+import warnings
 from unittest import mock
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.utils import ProgrammingError
 from django.test import TestCase
 
-from django_spicy_id import MalformedSpicyIdError, SpicyAutoField, SpicyUUIDField
+from django_spicy_id import (
+    MalformedSpicyIdError,
+    SpicyAutoField,
+    SpicySmallAutoField,
+    SpicyUUIDField,
+    TypeIDField,
+)
 from django_spicy_id.fields import LEGAL_PREFIX_RE
 from django_spicy_id.tests import models
 
@@ -363,3 +370,24 @@ class TestSpicyUUIDField(TestCase):
         self.assertEqual(kwargs["prefix"], "uu")
         self.assertEqual(kwargs["sep"], "-")
         self.assertEqual(kwargs["encoding"], "hex")
+
+
+class TestDeprecations(TestCase):
+    def test_small_auto_field_is_deprecated(self):
+        with self.assertWarnsRegex(DeprecationWarning, "use SpicyAutoField instead"):
+            SpicySmallAutoField(prefix="ex")
+
+    def test_uuid_field_is_deprecated(self):
+        with self.assertWarnsRegex(DeprecationWarning, "use TypeIDField instead"):
+            SpicyUUIDField(prefix="uu")
+
+    def test_typeid_field_does_not_warn(self):
+        """TypeIDField subclasses the deprecated SpicyUUIDField but is not itself deprecated."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            TypeIDField(prefix="user")  # must not raise
+
+    def test_undeprecated_fields_do_not_warn(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            SpicyAutoField(prefix="ex")  # must not raise

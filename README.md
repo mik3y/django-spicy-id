@@ -122,8 +122,8 @@ True
 
 - `SpicyBigAutoField`: A spicy id which is backed by a `BigAutoField` (i.e. 64-bit int) column.
 - `SpicyAutoField`: A spicy id which is backed by a `AutoField` (i.e. 32-bit int) column.
-- `SpicySmallAutoField`: A spicy id which is backed by a `SmallAutoField` (i.e. 16-bit int) column.
-- `SpicyUUIDField`: A spicy id which is backed by a `UUIDField` (i.e. 128-bit) column. Unlike the auto fields, values are not database-generated; by default a random UUID (`uuid.uuid4`) is assigned to new rows.
+- `SpicySmallAutoField`: A spicy id which is backed by a `SmallAutoField` (i.e. 16-bit int) column. **Deprecated:** scheduled for removal in v2.0.0; use `SpicyAutoField` instead.
+- `SpicyUUIDField`: A spicy id which is backed by a `UUIDField` (i.e. 128-bit) column. Unlike the auto fields, values are not database-generated; by default a random UUID (`uuid.uuid4`) is assigned to new rows. **Deprecated:** scheduled for removal in v2.0.0; use `TypeIDField` instead.
 - `TypeIDField`: A [TypeID](https://github.com/jetify-com/typeid)-compatible id which is backed by a `UUIDField` (i.e. 128-bit) column. It emits and parses strings like `user_01h455vb4pex5vsknk084sn02q` — a UUIDv7 rendered in Crockford base32 with a lowercase snake_case prefix — while storing the value as a native UUID. See [TypeID-compatible ids](#typeid-compatible-ids) below.
 
 ### Required Parameters

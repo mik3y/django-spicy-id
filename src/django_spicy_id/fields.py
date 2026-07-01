@@ -2,6 +2,7 @@ import re
 import secrets
 import time
 import uuid
+import warnings
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import models
@@ -276,13 +277,30 @@ class SpicyAutoField(BaseSpicyAutoField, models.AutoField):
 
 
 class SpicySmallAutoField(BaseSpicyAutoField, models.SmallAutoField):
-    """A Spicy ID field that is backed by a standard 16-bit Django SmallAutoField."""
+    """A Spicy ID field that is backed by a standard 16-bit Django SmallAutoField.
+
+    .. deprecated::
+        Scheduled for removal in v2.0.0. Use `SpicyAutoField` instead.
+    """
 
     NUM_BITS = 16
 
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "SpicySmallAutoField is deprecated and will be removed in v2.0.0; "
+            "use SpicyAutoField instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
 
 class SpicyUUIDField(models.UUIDField):
-    """A UUIDField that is rendered as a prefixed, encoded string."""
+    """A UUIDField that is rendered as a prefixed, encoded string.
+
+    .. deprecated::
+        Scheduled for removal in v2.0.0. Use `TypeIDField` instead.
+    """
 
     def __init__(
         self,
@@ -292,6 +310,16 @@ class SpicyUUIDField(models.UUIDField):
         *args,
         **kwargs,
     ):
+        # Guard on the exact type so subclasses (e.g. TypeIDField) don't inherit
+        # this deprecation. TypeIDField bypasses this __init__ anyway, but this
+        # keeps the warning correct for any future subclass.
+        if type(self) is SpicyUUIDField:
+            warnings.warn(
+                "SpicyUUIDField is deprecated and will be removed in v2.0.0; "
+                "use TypeIDField instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         if encoding not in CODECS_BY_ENCODING:
             raise ImproperlyConfigured(f'unknown encoding "{encoding}"')
         if not isinstance(prefix, str):
