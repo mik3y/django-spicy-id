@@ -142,7 +142,7 @@ class BaseSpicyAutoField(models.Field):
         if not s:
             raise MalformedSpicyIdError("value must be non-empty")
         m = self.re.match(s)
-        if not self.re.match(s):
+        if not m:
             raise MalformedSpicyIdError(
                 f"value does not match expected regex {repr(self.re.pattern)}"
             )
