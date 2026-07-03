@@ -2,6 +2,7 @@
 
 ## Current version (in development)
 
+* Bugfix: `SpicyUUIDField` and `TypeIDField` now work in ModelForms (including the Django admin). Previously they rendered as a plain form `UUIDField`, which rejected the prefixed strings the model field itself produces.
 * Feature: Added `TypeIDField`, a [TypeID](https://github.com/jetify-com/typeid)-compatible spicy id (UUIDv7 in Crockford base32 with a lowercase snake_case prefix) backed by a `UUIDField` column. Validated against the TypeID spec's official conformance vectors.
 * Feature: Added the `ENCODING_BASE_32` (Crockford base32) encoding and the `uuid7()` helper.
 * Deprecation: `SpicySmallAutoField` is deprecated and will be removed in v2.0.0. Use `SpicyAutoField` instead.

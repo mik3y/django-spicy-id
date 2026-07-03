@@ -4,6 +4,7 @@ import time
 import uuid
 import warnings
 
+from django import forms
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import models
 from django.db.models.signals import post_save
@@ -314,6 +315,31 @@ class SpicySmallAutoField(BaseSpicyAutoField, models.SmallAutoField):
         super().__init__(*args, **kwargs)
 
 
+class _SpicyIdFormField(forms.CharField):
+    """Form field for the UUID-backed spicy id fields.
+
+    Accepts anything the model field's `to_python` accepts (spicy id strings,
+    raw UUID strings) and normalizes the value to the spicy string form.
+    """
+
+    def __init__(self, *, model_field, **kwargs):
+        self.model_field = model_field
+        super().__init__(**kwargs)
+
+    def prepare_value(self, value):
+        # An unsaved instance may still hold its raw UUID default value;
+        # display it in the field's canonical string form.
+        if isinstance(value, uuid.UUID):
+            return self.model_field._to_string(value)
+        return value
+
+    def to_python(self, value):
+        value = super().to_python(value)
+        if value in self.empty_values:
+            return value
+        return self.model_field.to_python(value)
+
+
 class SpicyUUIDField(models.UUIDField):
     """A "spicy" typed ID backed by a 128-bit `UUIDField` column.
 
@@ -514,6 +540,12 @@ class SpicyUUIDField(models.UUIDField):
             # instance, so a failed save doesn't leave a raw UUID on it.
             return self._to_uuid(value)
         return super().pre_save(model_instance, add)
+
+    def formfield(self, **kwargs):
+        # `models.UUIDField` would default this to `forms.UUIDField`, which
+        # rejects the prefixed strings this field renders. Use a CharField-based
+        # form field that accepts and normalizes spicy id strings instead.
+        return super().formfield(**{"form_class": _SpicyIdFormField, "model_field": self, **kwargs})
 
 
 class TypeIDField(SpicyUUIDField):

@@ -2,6 +2,7 @@ import uuid
 import warnings
 from unittest import mock
 
+from django import forms
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.utils import ProgrammingError
 from django.test import TestCase
@@ -370,6 +371,31 @@ class TestSpicyUUIDField(TestCase):
         self.assertEqual(kwargs["prefix"], "uu")
         self.assertEqual(kwargs["sep"], "-")
         self.assertEqual(kwargs["encoding"], "hex")
+
+    def test_formfield_accepts_spicy_strings(self):
+        """The form field must accept the strings the model field renders."""
+        field = models.UUIDModel_WithDefaults._meta.get_field("id")
+        form_field = field.formfield()
+        self.assertNotIsInstance(form_field, forms.UUIDField)
+        self.assertEqual(self.TEST_UUID_B62, form_field.clean(self.TEST_UUID_B62))
+
+    def test_formfield_normalizes_raw_uuid_strings(self):
+        field = models.UUIDModel_WithDefaults._meta.get_field("id")
+        form_field = field.formfield()
+        self.assertEqual(self.TEST_UUID_B62, form_field.clean(str(self.TEST_UUID)))
+
+    def test_formfield_rejects_invalid_strings(self):
+        field = models.UUIDModel_WithDefaults._meta.get_field("id")
+        form_field = field.formfield()
+        for bad in ("wrong_prefix_123", "uu_!!!!", "uu_" + "z" * 22):
+            with self.assertRaises(ValidationError, msg=repr(bad)):
+                form_field.clean(bad)
+
+    def test_formfield_displays_uuid_as_spicy_string(self):
+        """Unsaved instances hold a raw UUID default; it must display as a spicy id."""
+        field = models.UUIDModel_WithDefaults._meta.get_field("id")
+        form_field = field.formfield()
+        self.assertEqual(self.TEST_UUID_B62, form_field.prepare_value(self.TEST_UUID))
 
 
 class TestDeprecations(TestCase):

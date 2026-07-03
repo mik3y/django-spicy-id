@@ -9,6 +9,7 @@ import uuid
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.utils import ProgrammingError
+from django.forms import modelform_factory
 from django.test import TestCase
 
 from django_spicy_id import MalformedSpicyIdError, TypeIDField
@@ -173,6 +174,20 @@ class TestTypeIDFieldModel(TestCase):
         self.assertEqual("0000000000000000000000000g", obj.id)
         retrieved = models.TypeIDModel_NoPrefix.objects.filter(pk=obj.id).first()
         self.assertEqual(obj.id, retrieved.id)
+
+    def test_modelform_roundtrip(self):
+        """A ModelForm must accept and save the field's own string format."""
+        form_class = modelform_factory(models.TypeIDModel, fields=["id"])
+        form = form_class(data={"id": self.TEST_TYPEID})
+        self.assertTrue(form.is_valid(), form.errors)
+        obj = form.save()
+        self.assertEqual(self.TEST_TYPEID, obj.id)
+
+    def test_modelform_rejects_invalid_typeid(self):
+        form_class = modelform_factory(models.TypeIDModel, fields=["id"])
+        form = form_class(data={"id": "prefix_0123456789ABCDEFGHJKMNPQRS"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("id", form.errors)
 
 
 class TestUUID7(TestCase):
