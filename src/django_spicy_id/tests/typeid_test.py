@@ -162,6 +162,12 @@ class TestTypeIDFieldModel(TestCase):
         with self.assertRaises(ProgrammingError):
             models.TypeIDModel.objects.filter(pk="wrong_abc").first()
 
+    def test_save_with_out_of_range_string_raises_programming_error(self):
+        """An out-of-range suffix fails save() with the library's error type."""
+        obj = models.TypeIDModel(id="prefix_8zzzzzzzzzzzzzzzzzzzzzzzzz")
+        with self.assertRaises(ProgrammingError):
+            obj.save()
+
     def test_full_clean_rejects_invalid(self):
         obj = models.TypeIDModel.objects.create(id=self.TEST_UUID)
         obj.id = "prefix_0123456789ABCDEFGHJKMNPQRS"  # uppercase suffix

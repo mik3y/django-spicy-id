@@ -549,7 +549,12 @@ class SpicyUUIDField(models.UUIDField):
         if isinstance(value, str) and self.re.match(value):
             # Return the decoded UUID for the query without mutating the
             # instance, so a failed save doesn't leave a raw UUID on it.
-            return self._to_uuid(value)
+            try:
+                return self._to_uuid(value)
+            except MalformedSpicyIdError as e:
+                # e.g. a regex-matching string that decodes out of range; raise
+                # the same error type as the other write paths.
+                raise ProgrammingError(f"the value {repr(value)} is not valid: {e}")
         return super().pre_save(model_instance, add)
 
     def formfield(self, **kwargs):
