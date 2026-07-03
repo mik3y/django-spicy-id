@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from django_spicy_id import (
@@ -6,6 +7,12 @@ from django_spicy_id import (
     SpicyUUIDField,
     TypeIDField,
 )
+
+
+def reject_thirteen(value):
+    """Test validator: rejects the id "ex_D" (13 in base62)."""
+    if value == "ex_D":
+        raise ValidationError("thirteen is unlucky", code="unlucky")
 
 
 class Model_WithDefaults(models.Model):
@@ -52,6 +59,10 @@ class UUIDModel_Hex(models.Model):
 
 class UUIDModel_Base58(models.Model):
     id = SpicyUUIDField("uu", primary_key=True, encoding="b58")
+
+
+class Model_WithCustomValidator(models.Model):
+    id = SpicyBigAutoField("ex", primary_key=True, validators=[reject_thirteen])
 
 
 class TypeIDModel(models.Model):

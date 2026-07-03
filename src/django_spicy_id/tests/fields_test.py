@@ -277,6 +277,32 @@ class TestFields(TestCase):
         obj.id = 42
         obj.full_clean()  # valid integer should pass
 
+    def test_user_supplied_validators_run_for_strings(self):
+        seen = []
+        field = SpicyAutoField(prefix="ex", validators=[seen.append])
+        field.run_validators("ex_8M0kX")
+        self.assertEqual(["ex_8M0kX"], seen)
+
+    def test_user_supplied_validators_run_for_integers(self):
+        seen = []
+        field = SpicyAutoField(prefix="ex", validators=[seen.append])
+        field.run_validators(42)
+        self.assertEqual([42], seen)
+
+    def test_integer_range_validators_still_apply(self):
+        min_value, max_value = connection.ops.integer_field_range("AutoField")
+        if max_value is None:
+            self.skipTest("backend does not enforce integer ranges")
+        field = SpicyAutoField(prefix="ex", validators=[lambda value: None])
+        with self.assertRaises(ValidationError):
+            field.run_validators(max_value + 1)
+
+    def test_full_clean_runs_user_supplied_validators(self):
+        obj = models.Model_WithCustomValidator.objects.create(id=13)
+        self.assertEqual("ex_D", obj.id)
+        with self.assertRaisesMessage(ValidationError, "thirteen is unlucky"):
+            obj.full_clean()
+
 
 class TestSpicyUUIDField(TestCase):
     TEST_UUID = uuid.UUID("12345678-1234-5678-1234-567812345678")
@@ -396,6 +422,12 @@ class TestSpicyUUIDField(TestCase):
         field = models.UUIDModel_WithDefaults._meta.get_field("id")
         form_field = field.formfield()
         self.assertEqual(self.TEST_UUID_B62, form_field.prepare_value(self.TEST_UUID))
+
+    def test_user_supplied_validators_run(self):
+        seen = []
+        field = SpicyUUIDField(prefix="uu", validators=[seen.append])
+        field.run_validators(self.TEST_UUID_B62)
+        self.assertEqual([self.TEST_UUID_B62], seen)
 
 
 class TestDeprecations(TestCase):

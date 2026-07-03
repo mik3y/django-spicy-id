@@ -211,16 +211,18 @@ class BaseSpicyAutoField(models.Field):
         # For integer values, defer to the parent IntegerField validators
         # (min/max range checks). For string values, validate the spicy id
         # format (prefix, separator, encoding, padding) and decoded numeric range.
-        parent_validators = super().validators
+        # User-supplied validators (the `validators=[...]` field argument) always
+        # run, whatever the value's type.
+        range_validators = [v for v in super().validators if v not in self._validators]
 
         def spicy_id_validator(value):
             if isinstance(value, int):
-                for v in parent_validators:
+                for v in range_validators:
                     v(value)
             elif isinstance(value, str):
                 self._validate_spicy_id(value)
 
-        return [spicy_id_validator]
+        return [spicy_id_validator, *self._validators]
 
     def from_db_value(self, value, expression, connection):
         if value is None:
@@ -441,11 +443,13 @@ class SpicyUUIDField(models.UUIDField):
 
     @cached_property
     def validators(self):
+        # String values are validated as spicy ids. User-supplied validators
+        # (the `validators=[...]` field argument) always run.
         def spicy_id_validator(value):
             if isinstance(value, str):
                 self._validate_spicy_id(value)
 
-        return [spicy_id_validator]
+        return [spicy_id_validator, *self._validators]
 
     def from_db_value(self, value, expression, connection):
         if value is None:
