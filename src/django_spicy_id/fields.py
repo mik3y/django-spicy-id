@@ -77,15 +77,18 @@ def get_regex(preamble, codec, pad, char_len):
     """Returns a regex that validates a spicy id with with given parameters.
 
     If `pad` is True, the regex allows leading padding characters (a
-    zero in most codecs). Else, these are not allowed.
+    zero in most codecs). Else, these are not allowed, with one exception:
+    a lone padding character, which is the canonical encoding of zero.
     """
     digits = codec.digits
+    pad_char = re.escape(digits[0])
     digits_without_pad_char = digits[1:]
     escaped_preamble = re.escape(preamble)
     if not pad:
         trailer_len = char_len - 1
         return re.compile(
-            f"^({escaped_preamble})([{digits_without_pad_char}][{digits}]{{,{trailer_len}}})$"
+            f"^({escaped_preamble})"
+            f"([{digits_without_pad_char}][{digits}]{{,{trailer_len}}}|{pad_char})$"
         )
     else:
         return re.compile(f"^({escaped_preamble})([{digits}]{{{char_len}}})$")

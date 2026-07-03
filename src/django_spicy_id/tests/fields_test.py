@@ -86,6 +86,23 @@ class TestFields(TestCase):
         field.validate_string(zero)  # must not raise
         self.assertEqual(0, field.get_prep_value(zero))
 
+    def test_unpadded_zero_roundtrips(self):
+        """The zero id renders as a single pad character and must parse back."""
+        field = SpicyAutoField(prefix="ex")
+        self.assertEqual("ex_0", field._to_string(0))
+        field.validate_string("ex_0")  # must not raise
+        self.assertEqual(0, field.get_prep_value("ex_0"))
+        # base58's pad character is "1", not "0".
+        b58_field = SpicyAutoField(prefix="ex", encoding="b58")
+        self.assertEqual("ex_1", b58_field._to_string(0))
+        self.assertEqual(0, b58_field.get_prep_value("ex_1"))
+
+    def test_unpadded_ids_still_reject_leading_pad_chars(self):
+        field = SpicyAutoField(prefix="ex")
+        for bad in ("ex_00", "ex_01", "ex_0A"):
+            with self.assertRaises(MalformedSpicyIdError, msg=repr(bad)):
+                field.validate_string(bad)
+
     def test_model_with_defaults(self):
         model = models.Model_WithDefaults
 
@@ -450,6 +467,20 @@ class TestSpicyUUIDField(TestCase):
         for bad in ("uu_" + "z" * 22, "not-a-uuid", ""):
             with self.assertRaises(ProgrammingError, msg=repr(bad)):
                 field.get_db_prep_value(bad, connection)
+
+    def test_nil_uuid_roundtrips(self):
+        """The nil UUID renders as `uu_0` and must parse back."""
+        field = models.UUIDModel_WithDefaults._meta.get_field("id")
+        nil = uuid.UUID(int=0)
+        rendered = field._to_string(nil)
+        self.assertEqual("uu_0", rendered)
+        field.validate_string(rendered)  # must not raise
+        self.assertEqual(nil, field.get_prep_value(rendered))
+
+        obj = models.UUIDModel_WithDefaults.objects.create(id=nil)
+        self.assertEqual("uu_0", obj.id)
+        retrieved = models.UUIDModel_WithDefaults.objects.filter(pk="uu_0").first()
+        self.assertEqual(obj, retrieved)
 
 
 class TestDeprecations(TestCase):
