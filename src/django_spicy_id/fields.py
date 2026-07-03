@@ -459,7 +459,11 @@ class SpicyUUIDField(models.UUIDField):
         return self._to_string(value)
 
     def _to_uuid(self, value):
-        """Converts a value to a uuid.UUID, accepting spicy strings, UUID objects, and raw strings."""
+        """Converts a value to a uuid.UUID, accepting spicy strings, UUID objects, and raw strings.
+
+        Raises `MalformedSpicyIdError` for unsupported types, and `ValueError` for
+        strings that are neither valid spicy ids nor valid raw UUIDs.
+        """
         if isinstance(value, uuid.UUID):
             return value
         if isinstance(value, str):
@@ -468,7 +472,7 @@ class SpicyUUIDField(models.UUIDField):
                 int_value = self.codec.decode(encoded)
                 return uuid.UUID(int=int_value)
             return uuid.UUID(value)
-        return None
+        raise MalformedSpicyIdError(f"cannot convert {type(value).__name__} value to a UUID")
 
     def get_prep_value(self, value):
         if not value:
@@ -488,8 +492,8 @@ class SpicyUUIDField(models.UUIDField):
         if not isinstance(value, uuid.UUID):
             try:
                 value = self._to_uuid(value)
-            except (MalformedSpicyIdError, ValueError):
-                value = uuid.UUID(value) if isinstance(value, str) else value
+            except (MalformedSpicyIdError, ValueError) as e:
+                raise ProgrammingError(f"the value {repr(value)} is not valid: {e}")
         if connection.features.has_native_uuid_field:
             return value
         return value.hex

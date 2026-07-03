@@ -4,6 +4,7 @@ from unittest import mock
 
 from django import forms
 from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.db import connection
 from django.db.utils import ProgrammingError
 from django.test import TestCase
 
@@ -428,6 +429,27 @@ class TestSpicyUUIDField(TestCase):
         field = SpicyUUIDField(prefix="uu", validators=[seen.append])
         field.run_validators(self.TEST_UUID_B62)
         self.assertEqual([self.TEST_UUID_B62], seen)
+
+    def test_get_db_prep_value_accepts_supported_values(self):
+        field = models.UUIDModel_WithDefaults._meta.get_field("id")
+        expected = (
+            self.TEST_UUID if connection.features.has_native_uuid_field else self.TEST_UUID.hex
+        )
+        for value in (self.TEST_UUID, self.TEST_UUID_B62, str(self.TEST_UUID)):
+            self.assertEqual(expected, field.get_db_prep_value(value, connection), msg=repr(value))
+
+    def test_get_db_prep_value_rejects_unsupported_types(self):
+        """Unsupported types must raise, not be silently written as NULL."""
+        field = models.UUIDModel_WithDefaults._meta.get_field("id")
+        for bad in (12345, 1.5, object()):
+            with self.assertRaises(ProgrammingError, msg=repr(bad)):
+                field.get_db_prep_value(bad, connection)
+
+    def test_get_db_prep_value_rejects_invalid_strings(self):
+        field = models.UUIDModel_WithDefaults._meta.get_field("id")
+        for bad in ("uu_" + "z" * 22, "not-a-uuid", ""):
+            with self.assertRaises(ProgrammingError, msg=repr(bad)):
+                field.get_db_prep_value(bad, connection)
 
 
 class TestDeprecations(TestCase):
