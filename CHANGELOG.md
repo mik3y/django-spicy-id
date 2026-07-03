@@ -9,6 +9,7 @@
 * Deprecation: `SpicySmallAutoField` is deprecated and will be removed in v2.0.0. Use `SpicyAutoField` instead.
 * Deprecation: `SpicyUUIDField` is deprecated and will be removed in v2.0.0. Use `TypeIDField` instead.
 * Docs: Added a generated API reference (`docs/api.md`), rendered from the public docstrings with pydoc-markdown (`make apidocs`) and kept in sync by a pre-commit hook.
+* Internal: CI now actually runs the test suite against MySQL and PostgreSQL. The test settings previously hardcoded sqlite, so the database matrix silently tested sqlite everywhere; additionally, the tox invocation did not select the database factors, so the database drivers were never installed.
 * Internal: Replaced the unused `sphinx` dev dependency with `pydoc-markdown`, and added a `pre-commit` CI workflow that runs all hooks.
 
 ## v1.1.0 (2026-07-01)

@@ -1,3 +1,5 @@
+import os
+
 SECRET_KEY = "test"
 
 INSTALLED_APPS = (
@@ -7,7 +9,21 @@ INSTALLED_APPS = (
     "django_spicy_id.tests",
 )
 
-DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3"}}
+# The CI matrix (see .github/workflows/test.yml) selects the database backend
+# and connection details through these environment variables; plain local runs
+# default to in-memory sqlite.
+DB_BACKEND = os.environ.get("DB_BACKEND", "sqlite3")
+
+DATABASES = {
+    "default": {
+        "ENGINE": f"django.db.backends.{DB_BACKEND}",
+        "NAME": os.environ.get("DB_NAME", ":memory:" if DB_BACKEND == "sqlite3" else ""),
+        "USER": os.environ.get("DB_USER", ""),
+        "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+        "HOST": os.environ.get("DB_HOST", ""),
+        "PORT": os.environ.get("DB_PORT", ""),
+    }
+}
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 STATIC_URL = "/static/"
