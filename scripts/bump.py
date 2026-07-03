@@ -9,8 +9,9 @@ With no argument, the patch version is bumped. The script will:
   1. Increment the ``version`` in ``pyproject.toml``.
   2. Rename the pending changelog section ("## Current version ...") to the
      new version with today's date, and open a fresh pending section.
-  3. Run pre-commit over the changed files.
-  4. Commit the changes as "vX.Y.Z" and create a matching git tag.
+  3. Refresh ``uv.lock``, which records the project's own version.
+  4. Run pre-commit over the changed files.
+  5. Commit the changes as "vX.Y.Z" and create a matching git tag.
 """
 
 import datetime
@@ -41,16 +42,17 @@ def bump_version(major, minor, patch, part):
     return major, minor, patch + 1
 
 
-def update_pyproject(part):
+def read_version():
     text = PYPROJECT.read_text()
     match = VERSION_RE.search(text)
     if not match:
         fail(f"could not find a version line in {PYPROJECT.name}")
-    major, minor, patch = (int(g) for g in match.groups())
-    new = ".".join(str(n) for n in bump_version(major, minor, patch, part))
-    text = VERSION_RE.sub(f'version = "{new}"', text, count=1)
-    PYPROJECT.write_text(text)
-    return new
+    return tuple(int(g) for g in match.groups())
+
+
+def write_version(version):
+    text = PYPROJECT.read_text()
+    PYPROJECT.write_text(VERSION_RE.sub(f'version = "{version}"', text, count=1))
 
 
 def update_changelog(version):
@@ -84,17 +86,24 @@ def main():
     if part not in {"patch", "minor", "major"}:
         fail(f"unknown version part {part!r} (expected patch, minor, or major)")
 
-    tag = None
-    version = update_pyproject(part)
+    version = ".".join(str(n) for n in bump_version(*read_version(), part))
     tag = f"v{version}"
 
+    # Refuse to touch any files if the tag already exists.
     existing = run(["git", "tag", "--list", tag], capture_output=True, text=True)
     if existing.stdout.strip():
         fail(f"tag {tag} already exists")
 
+    write_version(version)
     update_changelog(version)
 
-    files = [PYPROJECT.name, CHANGELOG.name]
+    # uv.lock records the project's own version; refresh it so the release
+    # commit doesn't leave a stale lockfile behind.
+    if not shutil.which("uv"):
+        fail("uv not found (it is required to refresh uv.lock)")
+    run(["uv", "lock"], check=True)
+
+    files = [PYPROJECT.name, CHANGELOG.name, "uv.lock"]
     run(["git", "add", *files])
 
     # Run pre-commit; if it reformats files, re-stage and run once more.

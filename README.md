@@ -341,8 +341,9 @@ Equivalently, you can call the script directly:
 
 1. Increment `version` in `pyproject.toml` (patch by default).
 2. Stamp the pending changelog section (`## Current version ...`) in `CHANGELOG.md` with the new version and today's date, and open a fresh pending section for the next release.
-3. Run `pre-commit` over the changed files (re-staging anything it reformats).
-4. Create a commit named `vX.Y.Z` and a matching git tag.
+3. Refresh `uv.lock`, which records the project's own version.
+4. Run `pre-commit` over the changed files (re-staging anything it reformats).
+5. Create a commit named `vX.Y.Z` and a matching git tag.
 
 Nothing is pushed automatically. Review the commit and tag, then `git push && git push --tags` when you're happy.
 
