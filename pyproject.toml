@@ -21,8 +21,8 @@ dev = [
     "pytest-django>=4.8.0,<5",
     "pydoc-markdown>=4.8,<5",
     "twine>=5.1.1,<6",
-    "ruff>=0.5.7,<0.6",
     "django>=6.0.5",
+    "ruff>=0.15.20",
 ]
 
 [build-system]

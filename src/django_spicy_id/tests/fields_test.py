@@ -6,7 +6,7 @@ from django import forms
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import connection
 from django.db.utils import ProgrammingError
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 
 from django_spicy_id import (
     MalformedSpicyIdError,
@@ -103,85 +103,6 @@ class TestFields(TestCase):
             with self.assertRaises(MalformedSpicyIdError, msg=repr(bad)):
                 field.validate_string(bad)
 
-    def test_model_with_defaults(self):
-        model = models.Model_WithDefaults
-
-        obj1 = model.objects.create()
-        self.assertEqual("ex_1", obj1.id)
-        obj2 = model.objects.create()
-        self.assertEqual("ex_2", obj2.id)
-        for i in range(7):
-            model.objects.create()
-        obj10 = model.objects.create()
-        self.assertEqual("ex_A", obj10.id)
-
-        custom = model.objects.create(id=123456789)
-        self.assertEqual("ex_8M0kX", custom.id)
-
-        # When padding is disabled, it's an error to use padding characters.
-        self.assertTrue(model.objects.filter(id="ex_8M0kX").first())
-        with self.assertRaises(ProgrammingError):
-            model.objects.filter(id="ex_0008M0kX").first()
-
-        boundary = model.objects.create(id=2**63 - 1)
-        self.assertEqual("ex_AzL8n0Y58m7", boundary.id)
-
-    def test_hex_model_with_defaults(self):
-        model = models.HexModel_WithDefaults
-
-        obj1 = model.objects.create()
-        self.assertEqual("ex_1", obj1.id)
-        obj2 = model.objects.create()
-        self.assertEqual("ex_2", obj2.id)
-        for i in range(7):
-            model.objects.create()
-        obj10 = model.objects.create()
-        self.assertEqual("ex_a", obj10.id)
-
-        custom = model.objects.create(id=123456789)
-        self.assertEqual("ex_75bcd15", custom.id)
-
-        # Using uppercase hex characters (i.e. supporting multiple legal
-        # representations of the same value) is not allowed.
-        with self.assertRaises(ProgrammingError):
-            model.objects.filter(id="ex_75BCD15").first()
-
-        boundary = model.objects.create(id=2**63 - 1)
-        self.assertEqual("ex_7fffffffffffffff", boundary.id)
-
-    def test_base58_model_with_padding(self):
-        model = models.Base58Model_WithPadding
-
-        o = model.objects.create()
-        self.assertEqual("ex_11111111112", o.id)
-        custom = model.objects.create(id=123456789)
-        self.assertEqual("ex_111111BukQL", custom.id)
-
-        boundary = model.objects.create(id=2**63 - 1)
-        self.assertEqual("ex_NQm6nKp8qFC", boundary.id)
-
-    def test_base62_model_with_padding(self):
-        model = models.Base62Model_WithPadding
-
-        o = model.objects.create()
-        self.assertEqual("ex_00000000001", o.id)
-        custom = model.objects.create(id=123456789)
-        self.assertEqual("ex_0000008M0kX", custom.id)
-
-        boundary = model.objects.create(id=2**63 - 1)
-        self.assertEqual("ex_AzL8n0Y58m7", boundary.id)
-
-    def test_hex_model_with_padding(self):
-        model = models.HexModel_WithPadding
-
-        o = model.objects.create()
-        self.assertEqual("ex_0000000000000001", o.id)
-        custom = model.objects.create(id=123456789)
-        self.assertEqual("ex_00000000075bcd15", custom.id)
-
-        boundary = model.objects.create(id=2**63 - 1)
-        self.assertEqual("ex_7fffffffffffffff", boundary.id)
-
     @mock.patch("secrets.randbelow")
     def test_base62_model_with_randomize(self, mock_secrets_randbelow):
         model = models.Base62Model_WithRandomize
@@ -264,13 +185,6 @@ class TestFields(TestCase):
         self.assertEqual("ex_2", o.id)
         self.assertFalse(o._state.adding)
 
-    def test_full_clean_with_spicy_id(self):
-        """Ensures full_clean() works on a model instance with a spicy id."""
-        model = models.Model_WithDefaults
-        obj = model.objects.create()
-        self.assertEqual("ex_1", obj.id)
-        obj.full_clean()
-
     @mock.patch("secrets.randbelow")
     def test_full_clean_with_randomized_spicy_id(self, mock_secrets_randbelow):
         """Ensures full_clean() works on a model with randomize=True."""
@@ -320,6 +234,104 @@ class TestFields(TestCase):
         self.assertEqual("ex_D", obj.id)
         with self.assertRaisesMessage(ValidationError, "thirteen is unlucky"):
             obj.full_clean()
+
+
+class TestFieldsWithFreshCounters(TransactionTestCase):
+    """Tests that assert absolute auto-increment values (e.g. "the first row is ex_1").
+
+    On MySQL and PostgreSQL, auto-increment counters are not rolled back with
+    the per-test transaction that django.test.TestCase uses, so counter state
+    leaks between tests. `reset_sequences` restores each table's counter before
+    every test in this class.
+    """
+
+    reset_sequences = True
+
+    def test_model_with_defaults(self):
+        model = models.Model_WithDefaults
+
+        obj1 = model.objects.create()
+        self.assertEqual("ex_1", obj1.id)
+        obj2 = model.objects.create()
+        self.assertEqual("ex_2", obj2.id)
+        for i in range(7):
+            model.objects.create()
+        obj10 = model.objects.create()
+        self.assertEqual("ex_A", obj10.id)
+
+        custom = model.objects.create(id=123456789)
+        self.assertEqual("ex_8M0kX", custom.id)
+
+        # When padding is disabled, it's an error to use padding characters.
+        self.assertTrue(model.objects.filter(id="ex_8M0kX").first())
+        with self.assertRaises(ProgrammingError):
+            model.objects.filter(id="ex_0008M0kX").first()
+
+        boundary = model.objects.create(id=2**63 - 1)
+        self.assertEqual("ex_AzL8n0Y58m7", boundary.id)
+
+    def test_hex_model_with_defaults(self):
+        model = models.HexModel_WithDefaults
+
+        obj1 = model.objects.create()
+        self.assertEqual("ex_1", obj1.id)
+        obj2 = model.objects.create()
+        self.assertEqual("ex_2", obj2.id)
+        for i in range(7):
+            model.objects.create()
+        obj10 = model.objects.create()
+        self.assertEqual("ex_a", obj10.id)
+
+        custom = model.objects.create(id=123456789)
+        self.assertEqual("ex_75bcd15", custom.id)
+
+        # Using uppercase hex characters (i.e. supporting multiple legal
+        # representations of the same value) is not allowed.
+        with self.assertRaises(ProgrammingError):
+            model.objects.filter(id="ex_75BCD15").first()
+
+        boundary = model.objects.create(id=2**63 - 1)
+        self.assertEqual("ex_7fffffffffffffff", boundary.id)
+
+    def test_base58_model_with_padding(self):
+        model = models.Base58Model_WithPadding
+
+        o = model.objects.create()
+        self.assertEqual("ex_11111111112", o.id)
+        custom = model.objects.create(id=123456789)
+        self.assertEqual("ex_111111BukQL", custom.id)
+
+        boundary = model.objects.create(id=2**63 - 1)
+        self.assertEqual("ex_NQm6nKp8qFC", boundary.id)
+
+    def test_base62_model_with_padding(self):
+        model = models.Base62Model_WithPadding
+
+        o = model.objects.create()
+        self.assertEqual("ex_00000000001", o.id)
+        custom = model.objects.create(id=123456789)
+        self.assertEqual("ex_0000008M0kX", custom.id)
+
+        boundary = model.objects.create(id=2**63 - 1)
+        self.assertEqual("ex_AzL8n0Y58m7", boundary.id)
+
+    def test_hex_model_with_padding(self):
+        model = models.HexModel_WithPadding
+
+        o = model.objects.create()
+        self.assertEqual("ex_0000000000000001", o.id)
+        custom = model.objects.create(id=123456789)
+        self.assertEqual("ex_00000000075bcd15", custom.id)
+
+        boundary = model.objects.create(id=2**63 - 1)
+        self.assertEqual("ex_7fffffffffffffff", boundary.id)
+
+    def test_full_clean_with_spicy_id(self):
+        """Ensures full_clean() works on a model instance with a spicy id."""
+        model = models.Model_WithDefaults
+        obj = model.objects.create()
+        self.assertEqual("ex_1", obj.id)
+        obj.full_clean()
 
 
 class TestSpicyUUIDField(TestCase):
