@@ -1,7 +1,10 @@
 import re
 import secrets
+import time
 import uuid
+import warnings
 
+from django import forms
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import models
 from django.db.models.signals import post_save
@@ -14,18 +17,27 @@ from . import baseconv
 
 # Encoding strategies which may be selected with the `encoding=` field parameter.
 ENCODING_HEX = "hex"
+ENCODING_BASE_32 = "b32"
 ENCODING_BASE_58 = "b58"
 ENCODING_BASE_62 = "b62"
 
 # Maps encoding strategy to its encoder/decoder.
 CODECS_BY_ENCODING = {
     ENCODING_HEX: baseconv.base16,
+    ENCODING_BASE_32: baseconv.base32_crockford,
     ENCODING_BASE_58: baseconv.base58,
     ENCODING_BASE_62: baseconv.base62,
 }
 
 # Validates acceptable values for the `prefix=` field parameter.
 LEGAL_PREFIX_RE = re.compile("^[a-zA-Z][0-9a-zA-Z]*$")
+
+# TypeID (https://github.com/jetify-com/typeid) constraints. The suffix is always
+# exactly 26 base32 characters, and the prefix is lowercase snake_case ascii of at
+# most 63 characters that starts and ends with a letter (or is empty).
+TYPEID_SUFFIX_LEN = 26
+TYPEID_MAX_PREFIX_LEN = 63
+LEGAL_TYPEID_PREFIX_RE = re.compile(r"^([a-z]([a-z_]{0,61}[a-z])?)?$")
 
 
 def num_digits(value, base):
@@ -41,19 +53,42 @@ def num_digits(value, base):
     return digits
 
 
+def uuid7():
+    """Returns a new UUIDv7 (time-ordered), per RFC 9562.
+
+    Delegates to the stdlib `uuid.uuid7` when available (Python 3.14+); otherwise
+    builds one from a millisecond timestamp plus random bits. Used as the default
+    value generator for `TypeIDField`, since the TypeID spec requires
+    generated ids to decode to a valid UUIDv7.
+    """
+    if hasattr(uuid, "uuid7"):
+        return uuid.uuid7()
+
+    unix_ms = time.time_ns() // 1_000_000
+    value = (unix_ms & 0xFFFFFFFFFFFF) << 80  # 48-bit timestamp
+    value |= 0x7 << 76  # 4-bit version
+    value |= secrets.randbits(12) << 64  # 12 bits rand_a
+    value |= 0b10 << 62  # 2-bit variant
+    value |= secrets.randbits(62)  # 62 bits rand_b
+    return uuid.UUID(int=value)
+
+
 def get_regex(preamble, codec, pad, char_len):
     """Returns a regex that validates a spicy id with with given parameters.
 
     If `pad` is True, the regex allows leading padding characters (a
-    zero in most codecs). Else, these are not allowed.
+    zero in most codecs). Else, these are not allowed, with one exception:
+    a lone padding character, which is the canonical encoding of zero.
     """
     digits = codec.digits
+    pad_char = re.escape(digits[0])
     digits_without_pad_char = digits[1:]
     escaped_preamble = re.escape(preamble)
     if not pad:
         trailer_len = char_len - 1
         return re.compile(
-            f"^({escaped_preamble})([{digits_without_pad_char}][{digits}]{{,{trailer_len}}})$"
+            f"^({escaped_preamble})"
+            f"([{digits_without_pad_char}][{digits}]{{,{trailer_len}}}|{pad_char})$"
         )
     else:
         return re.compile(f"^({escaped_preamble})([{digits}]{{{char_len}}})$")
@@ -179,16 +214,18 @@ class BaseSpicyAutoField(models.Field):
         # For integer values, defer to the parent IntegerField validators
         # (min/max range checks). For string values, validate the spicy id
         # format (prefix, separator, encoding, padding) and decoded numeric range.
-        parent_validators = super().validators
+        # User-supplied validators (the `validators=[...]` field argument) always
+        # run, whatever the value's type.
+        range_validators = [v for v in super().validators if v not in self._validators]
 
         def spicy_id_validator(value):
             if isinstance(value, int):
-                for v in parent_validators:
+                for v in range_validators:
                     v(value)
             elif isinstance(value, str):
                 self._validate_spicy_id(value)
 
-        return [spicy_id_validator]
+        return [spicy_id_validator, *self._validators]
 
     def from_db_value(self, value, expression, connection):
         if value is None:
@@ -232,26 +269,97 @@ class BaseSpicyAutoField(models.Field):
             del kwargs["default"]
         return name, path, args, kwargs
 
+
 class SpicyBigAutoField(BaseSpicyAutoField, models.BigAutoField):
-    """A Spicy ID field that is backed by a standard 64-bit Django BigAutoField."""
+    """A "spicy" typed ID backed by a 64-bit `BigAutoField` column.
+
+    Behaves like a normal `BigAutoField`, the stored value is a database-generated
+    integer, but it is displayed and queried as a prefixed string such as
+    `user_8M0kX`.
+
+    Arguments:
+        prefix: The type prefix shown on every id, e.g. `user`. Required.
+        sep: The separator between the prefix and the encoded value. Defaults to `_`.
+        encoding: How the integer value is encoded. One of `ENCODING_BASE_62`
+            (default), `ENCODING_BASE_58`, `ENCODING_BASE_32`, or `ENCODING_HEX`.
+        pad: If `True`, zero-pad the encoded value so all ids are the same length.
+            Defaults to `False`.
+        randomize: If `True`, assign a random (rather than sequential) value on
+            insert, using `secrets`. Defaults to `False`.
+    """
 
     NUM_BITS = 64
 
 
 class SpicyAutoField(BaseSpicyAutoField, models.AutoField):
-    """A Spicy ID field that is backed by a standard 32-bit Django AutoField."""
+    """A "spicy" typed ID backed by a 32-bit `AutoField` column.
+
+    Takes the same arguments as `SpicyBigAutoField`.
+    """
 
     NUM_BITS = 32
 
 
 class SpicySmallAutoField(BaseSpicyAutoField, models.SmallAutoField):
-    """A Spicy ID field that is backed by a standard 16-bit Django SmallAutoField."""
+    """A "spicy" typed ID backed by a 16-bit `SmallAutoField` column.
+
+    Takes the same arguments as `SpicyBigAutoField`.
+
+    **Deprecated:** scheduled for removal in v2.0.0. Use `SpicyAutoField` instead.
+    """
 
     NUM_BITS = 16
 
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "SpicySmallAutoField is deprecated and will be removed in v2.0.0; "
+            "use SpicyAutoField instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class _SpicyIdFormField(forms.CharField):
+    """Form field for the UUID-backed spicy id fields.
+
+    Accepts anything the model field's `to_python` accepts (spicy id strings,
+    raw UUID strings) and normalizes the value to the spicy string form.
+    """
+
+    def __init__(self, *, model_field, **kwargs):
+        self.model_field = model_field
+        super().__init__(**kwargs)
+
+    def prepare_value(self, value):
+        # An unsaved instance may still hold its raw UUID default value;
+        # display it in the field's canonical string form.
+        if isinstance(value, uuid.UUID):
+            return self.model_field._to_string(value)
+        return value
+
+    def to_python(self, value):
+        value = super().to_python(value)
+        if value in self.empty_values:
+            return value
+        return self.model_field.to_python(value)
+
 
 class SpicyUUIDField(models.UUIDField):
-    """A UUIDField that is rendered as a prefixed, encoded string."""
+    """A "spicy" typed ID backed by a 128-bit `UUIDField` column.
+
+    **Deprecated:** scheduled for removal in v2.0.0. Use `TypeIDField` instead.
+
+    Unlike the auto fields, the value is not database-generated; a random
+    `uuid.uuid4` is assigned to new rows by default. It is displayed and queried
+    as a prefixed, encoded string.
+
+    Arguments:
+        prefix: The type prefix shown on every id, e.g. `user`. Required.
+        sep: The separator between the prefix and the encoded value. Defaults to `_`.
+        encoding: How the UUID is encoded. One of `ENCODING_BASE_62` (default),
+            `ENCODING_BASE_58`, `ENCODING_BASE_32`, or `ENCODING_HEX`.
+    """
 
     def __init__(
         self,
@@ -261,6 +369,16 @@ class SpicyUUIDField(models.UUIDField):
         *args,
         **kwargs,
     ):
+        # Guard on the exact type so subclasses (e.g. TypeIDField) don't inherit
+        # this deprecation. TypeIDField bypasses this __init__ anyway, but this
+        # keeps the warning correct for any future subclass.
+        if type(self) is SpicyUUIDField:
+            warnings.warn(
+                "SpicyUUIDField is deprecated and will be removed in v2.0.0; "
+                "use TypeIDField instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         if encoding not in CODECS_BY_ENCODING:
             raise ImproperlyConfigured(f'unknown encoding "{encoding}"')
         if not isinstance(prefix, str):
@@ -328,11 +446,13 @@ class SpicyUUIDField(models.UUIDField):
 
     @cached_property
     def validators(self):
+        # String values are validated as spicy ids. User-supplied validators
+        # (the `validators=[...]` field argument) always run.
         def spicy_id_validator(value):
             if isinstance(value, str):
                 self._validate_spicy_id(value)
 
-        return [spicy_id_validator]
+        return [spicy_id_validator, *self._validators]
 
     def from_db_value(self, value, expression, connection):
         if value is None:
@@ -342,7 +462,11 @@ class SpicyUUIDField(models.UUIDField):
         return self._to_string(value)
 
     def _to_uuid(self, value):
-        """Converts a value to a uuid.UUID, accepting spicy strings, UUID objects, and raw strings."""
+        """Converts a value to a uuid.UUID, accepting spicy strings, UUID objects, and raw strings.
+
+        Raises `MalformedSpicyIdError` for unsupported types, and `ValueError` for
+        strings that are neither valid spicy ids nor valid raw UUIDs.
+        """
         if isinstance(value, uuid.UUID):
             return value
         if isinstance(value, str):
@@ -351,7 +475,7 @@ class SpicyUUIDField(models.UUIDField):
                 int_value = self.codec.decode(encoded)
                 return uuid.UUID(int=int_value)
             return uuid.UUID(value)
-        return None
+        raise MalformedSpicyIdError(f"cannot convert {type(value).__name__} value to a UUID")
 
     def get_prep_value(self, value):
         if not value:
@@ -371,8 +495,8 @@ class SpicyUUIDField(models.UUIDField):
         if not isinstance(value, uuid.UUID):
             try:
                 value = self._to_uuid(value)
-            except (MalformedSpicyIdError, ValueError):
-                value = uuid.UUID(value) if isinstance(value, str) else value
+            except (MalformedSpicyIdError, ValueError) as e:
+                raise ProgrammingError(f"the value {repr(value)} is not valid: {e}")
         if connection.features.has_native_uuid_field:
             return value
         return value.hex
@@ -425,5 +549,87 @@ class SpicyUUIDField(models.UUIDField):
         if isinstance(value, str) and self.re.match(value):
             # Return the decoded UUID for the query without mutating the
             # instance, so a failed save doesn't leave a raw UUID on it.
-            return self._to_uuid(value)
+            try:
+                return self._to_uuid(value)
+            except MalformedSpicyIdError as e:
+                # e.g. a regex-matching string that decodes out of range; raise
+                # the same error type as the other write paths.
+                raise ProgrammingError(f"the value {repr(value)} is not valid: {e}")
         return super().pre_save(model_instance, add)
+
+    def formfield(self, **kwargs):
+        # `models.UUIDField` would default this to `forms.UUIDField`, which
+        # rejects the prefixed strings this field renders. Use a CharField-based
+        # form field that accepts and normalizes spicy id strings instead.
+        return super().formfield(**{"form_class": _SpicyIdFormField, "model_field": self, **kwargs})
+
+
+class TypeIDField(SpicyUUIDField):
+    """A field implementing the TypeID spec, backed by a `UUIDField` column.
+
+    TypeIDs (https://github.com/jetify-com/typeid) are UUIDv7 values rendered in
+    Crockford base32 with a lowercase snake_case type prefix, e.g.
+    `user_01h455vb4pex5vsknk084sn02q`. This field produces and accepts exactly
+    that format while storing the value as a native UUID.
+
+    The `encoding` (base32), separator (`_`), and fixed 26-character zero padding
+    are all mandated by the spec and are not configurable. New rows default to a
+    freshly generated UUIDv7 (see `uuid7`).
+
+    Arguments:
+        prefix: The type prefix, following the TypeID rules: lowercase ascii
+            `[a-z_]`, at most 63 characters, starting and ending with a letter.
+            May be empty, in which case the separator is omitted.
+    """
+
+    def __init__(self, prefix="", *args, **kwargs):
+        if not isinstance(prefix, str):
+            raise ImproperlyConfigured("prefix must be a string")
+        if len(prefix) > TYPEID_MAX_PREFIX_LEN:
+            raise ImproperlyConfigured(
+                f"prefix: must be at most {TYPEID_MAX_PREFIX_LEN} characters"
+            )
+        if not LEGAL_TYPEID_PREFIX_RE.match(prefix):
+            raise ImproperlyConfigured(
+                "prefix: TypeID prefixes must be empty or lowercase ascii [a-z_], "
+                "starting and ending with a letter"
+            )
+        # `sep` and `encoding` are dictated by the spec; reject attempts to set them
+        # so a misconfiguration fails loudly rather than silently being ignored.
+        for fixed in ("sep", "encoding"):
+            if fixed in kwargs:
+                raise ImproperlyConfigured(f"`{fixed}` is not configurable on a TypeID field")
+
+        self.prefix = prefix
+        self.sep = "_"
+        self.encoding = ENCODING_BASE_32
+        self.codec = CODECS_BY_ENCODING[self.encoding]
+        self.max_characters = TYPEID_SUFFIX_LEN
+
+        # The separator is omitted entirely when the prefix is empty.
+        preamble = f"{self.prefix}{self.sep}" if self.prefix else ""
+        self.re = get_regex(preamble, self.codec, True, TYPEID_SUFFIX_LEN)
+        self.re_pattern = self.re.pattern[1:-1]
+
+        kwargs.setdefault("default", uuid7)
+        # Bypass SpicyUUIDField.__init__, whose prefix/encoding rules differ; the
+        # setup above is the TypeID-specific equivalent.
+        models.UUIDField.__init__(self, *args, **kwargs)
+
+    def _to_string(self, uid):
+        if not isinstance(uid, uuid.UUID):
+            uid = uuid.UUID(uid) if isinstance(uid, str) else uuid.UUID(int=uid)
+        encoded = self.codec.encode(uid.int).rjust(TYPEID_SUFFIX_LEN, self.codec.digits[0])
+        if not self.prefix:
+            return encoded
+        return f"{self.prefix}{self.sep}{encoded}"
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        # `sep` and `encoding` are implied by the field type and rejected by
+        # __init__, so they must not be emitted into migrations.
+        kwargs.pop("sep", None)
+        kwargs.pop("encoding", None)
+        if "default" in kwargs and kwargs["default"] is uuid7:
+            del kwargs["default"]
+        return name, path, args, kwargs

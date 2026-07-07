@@ -1,6 +1,6 @@
 # django-spicy-id
 
-A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" self-identifying string object IDs, like `user_1234`.
+A library for Django which gives you both a true UUIDv7 TypeID field, and drop-in replacements for Django's `AutoField` that simulate typed IDs. "Typed IDs" are self-identifying string row/object IDs, like `user_1234`.
 
 **Status:** Stable. No warranty, see `LICENSE.txt`.
 
@@ -12,8 +12,8 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [What is a "spicy" id?](#what-is-a-spicy-id)
-- [Why use spicy ids?](#why-use-spicy-ids)
+- [What is a typed ID?](#what-is-a-typed-id)
+- [Why use typed IDs?](#why-use-typed-ids)
 - [Installation](#installation)
   - [Requirements](#requirements)
   - [Instructions](#instructions)
@@ -21,6 +21,7 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
   - [Field types](#field-types)
   - [Required Parameters](#required-parameters)
   - [Optional Parameters](#optional-parameters)
+  - [TypeID-compatible ids](#typeid-compatible-ids)
   - [Registering URLs](#registering-urls)
   - [Django REST Framework](#django-rest-framework)
   - [Field Attributes](#field-attributes)
@@ -32,6 +33,7 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
   - [Errors](#errors)
     - [`django.db.utils.ProgrammingError`](#djangodbutilsprogrammingerror)
     - [`django_spicy_id.MalformedSpicyIdError`](#django_spicy_idmalformedspicyiderror)
+- [API Reference](#api-reference)
 - [Tips and tricks](#tips-and-tricks)
   - [Don't change field configuration](#dont-change-field-configuration)
 - [Releasing](#releasing)
@@ -39,17 +41,17 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## What is a "spicy" id?
+## What is a typed ID?
 
-It's a made-up name (because I couldn't think of a better one) for a numeric primary keys type that is shown and manipulated as a string, prefixed with a constant value.
+A **typed ID** is a row or object ID that's shown and manipulated as a string, prefixed with a constant value that identifies its type. If you've used an API like Stripe's, you've seen them.
 
 Here are some examples. You can use this library to make your Django row IDs look like:
 
 - `user_1234`
 - `account-00000000deadbeef`
-- `bloop:1a2k3841x`
+- `user_01h455vb4pex5vsknk084sn02q`
 
-Although you should always treat these values as opaque and _never_ decode or parse the string's contents elsewhere (see _Errors_), you can think of every spicy id as being composed of:
+Although you should always treat these values as opaque and _never_ decode or parse the string's contents elsewhere (see _Errors_), you can think of every typed ID as being composed of:
 
 ```
 <prefix> <separator> <encoded_value>
@@ -57,17 +59,20 @@ Although you should always treat these values as opaque and _never_ decode or pa
 
 - **`prefix`**: A fixed string value that will be the same for all IDs of this record type, forever.
 - **`separator`**: A configurable separator which, like `prefix`, is fixed forever; usually `_` (the default) or `-` (another popular choice).
-- **`encoded_value`**: The numeric portion of the id. This library supports using base 16 (hex) or base 62.
+- **`encoded_value`**: The encoded value portion of the id.
 
-Importantly, the underlying database value is still stored and retrieved as a _numeric type_, just like an `AutoField`, `SmallAutoField`, or `BigAutoField`.
+This library gives you two ways to add typed IDs to your models:
 
-## Why use spicy ids?
+- **`TypeIDField`** implements the [TypeID](https://github.com/jetify-com/typeid) spec: a globally-unique, k-sortable UUIDv7 rendered in Crockford base32 and stored in a native `UUIDField` column (e.g. `user_01h455vb4pex5vsknk084sn02q`). A good choice for new models and for retrofitting existing UUID fields.
+- **The "spicy" auto fields** (`SpicyAutoField` and `SpicyBigAutoField`) are drop-in replacements for Django's `AutoField` that _simulate_ typed IDs. The underlying value is still a database-generated integer, stored and retrieved just like an `AutoField`, but it's displayed as a prefixed string like `user_1234`. "Spicy" is our made-up name for this integer-backed approach.
+
+## Why use typed IDs?
 
 Briefly: Because they're so much nicer for humans to work with.
 
 - **Readability:** While row-level primary keys are typically treated as "anonymous" (as in "not something anyone should have to care about"), the fact is these values still _show up_ in lots of situations: They're in URLs, dumped in logfiles, shown in queries, and so on. In these situations, it's just plain faster to understand "what am I looking at" when the identifier itself tells you its type.
 - **Conflict and accident prevention:** When your systems require you to pass around typed identifiers like `acct_1234` and `invoice_5432beef`, certain kinds of accidents become impossible. For example, `HTTP DELETE /users/invoice_21` fails fast.
-- **Future-proofing:** Adopting spicy IDs means your systems and APIs are developed to accept a basically-opaque string as an ID. While their underlying type is numeric, in very advanced situations you may be able to migrate to a different type or datastore "behind" the abstraction the string ID creates.
+- **Future-proofing:** Adopting typed IDs means your systems and APIs are developed to accept a basically-opaque string as an ID. Because callers never depend on the underlying representation, you keep the freedom to change it later, for example migrating a "spicy" integer id to a different type or datastore "behind" the abstraction the string ID creates.
 
 For a more detailed look at this pattern, see Stripe's ["Object IDs: Designing APIs for Humans"](https://dev.to/stripe/designing-apis-for-humans-object-ids-3o5a).
 
@@ -93,36 +98,59 @@ pip install django_spicy_id
 
 ## Usage
 
-Given the following example model:
+This library gives you two flavors of typed ID. Here is each one in action.
+
+**A real TypeID**, backed by a `UUIDField`:
+
+```py
+from django.db import models
+from django_spicy_id import TypeIDField
+
+class User(models.Model):
+    id = TypeIDField(primary_key=True, prefix='user')
+```
+
+```py
+>>> u = User.objects.create()
+>>> u.id
+'user_01h455vb4pex5vsknk084sn02q'
+>>> found_user = User.objects.filter(id='user_01h455vb4pex5vsknk084sn02q').first()
+>>> found_user == u
+True
+```
+
+**A "spicy" integer id**, a drop-in replacement for Django's `AutoField`:
 
 ```py
 from django.db import models
 from django_spicy_id import SpicyBigAutoField
 
-class User(models.model):
-    id = SpicyBigAutoField(primary_key=True, prefix='usr')
+class Account(models.Model):
+    id = SpicyBigAutoField(primary_key=True, prefix='acct')
 ```
 
-Example usage:
-
 ```py
->>> u = models.User.objects.create()
->>> u.id
-'usr_1'
->>> u2 = models.User.objects.create(id=123456789)
->>> u2.id
-'usr_8M0kX'
->>> found_user = models.User.objects.filter(id='usr_8M0kX').first()
->>> found_user == u2
+>>> a = Account.objects.create()
+>>> a.id
+'acct_1'
+>>> a2 = Account.objects.create(id=123456789)
+>>> a2.id
+'acct_8M0kX'
+>>> found_account = Account.objects.filter(id='acct_8M0kX').first()
+>>> found_account == a2
 True
 ```
 
 ### Field types
 
+- `TypeIDField`: A [TypeID](https://github.com/jetify-com/typeid)-compatible id which is backed by a `UUIDField` (i.e. 128-bit) column. It emits and parses strings like `user_01h455vb4pex5vsknk084sn02q`, a UUIDv7 rendered in Crockford base32 with a lowercase snake_case prefix, while storing the value as a native UUID. See [TypeID-compatible ids](#typeid-compatible-ids) below.
 - `SpicyBigAutoField`: A spicy id which is backed by a `BigAutoField` (i.e. 64-bit int) column.
 - `SpicyAutoField`: A spicy id which is backed by a `AutoField` (i.e. 32-bit int) column.
-- `SpicySmallAutoField`: A spicy id which is backed by a `SmallAutoField` (i.e. 16-bit int) column.
-- `SpicyUUIDField`: A spicy id which is backed by a `UUIDField` (i.e. 128-bit) column. Unlike the auto fields, values are not database-generated; by default a random UUID (`uuid.uuid4`) is assigned to new rows.
+
+**Deprecated fields:**
+
+- `SpicySmallAutoField`: A spicy id which is backed by a `SmallAutoField` (i.e. 16-bit int) column. Scheduled for removal in v2.0.0; use `SpicyAutoField` instead.
+- `SpicyUUIDField`: A spicy id which is backed by a `UUIDField` (i.e. 128-bit) column. Unlike the auto fields, values are not database-generated; by default a random UUID (`uuid.uuid4`) is assigned to new rows. Scheduled for removal in v2.0.0; use `TypeIDField` instead.
 
 ### Required Parameters
 
@@ -137,6 +165,8 @@ In addition to all parameters you can provide a normal `AutoField`, each of the 
 - **`encoding`**: What numeric encoding scheme to use. One of `django_spicy_id.ENCODING_BASE_62` (default), `django_spicy_id.ENCODING_BASE_58`, or `django_spicy_id.ENCODING_HEX`.
 - **`sep`**: The separator character. Defaults to `_`. Can be any string.
 
+`TypeIDField` is the exception: the TypeID spec fixes both `encoding` and `sep`, so it does not accept either parameter. See [TypeID-compatible ids](#typeid-compatible-ids).
+
 The auto field types (`SpicyAutoField`, `SpicyBigAutoField`, `SpicySmallAutoField`) additionally support:
 
 - **`pad`**: Whether the encoded portion of the id should be zero-padded so that all values are the same string length. Either `False` (default) or `True`.
@@ -148,6 +178,35 @@ The auto field types (`SpicyAutoField`, `SpicyBigAutoField`, `SpicySmallAutoFiel
   - If you use this feature, be aware of its hazards: 
       - The generated ID may conflict with an existing row, with probability [determined by the birthday problem](https://en.wikipedia.org/wiki/Birthday_problem#Probability_table) (i.e. the column size and the size of the existing dataset).
       - A conflict can also arise if two processes generate the same value for `secrets.randbelow()` (i.e. if system entropy is identical or misconfigured for some reason).
+
+### TypeID-compatible ids
+
+If you want ids that are interoperable with the [TypeID](https://github.com/jetify-com/typeid) spec (a cross-language standard with implementations in Go, Rust, Python, TypeScript, and more), use `TypeIDField`:
+
+```py
+from django.db import models
+from django_spicy_id import TypeIDField
+
+class User(models.Model):
+    id = TypeIDField(primary_key=True, prefix='user')
+```
+
+```py
+>>> u = User.objects.create()
+>>> u.id
+'user_01h455vb4pex5vsknk084sn02q'
+```
+
+`TypeIDField` is backed by a standard Django `UUIDField` column, so it stores its value as a native UUID and accepts UUIDs, TypeID strings, or raw UUID strings when assigning. Its string representation follows the TypeID spec:
+
+- **Encoding** is always Crockford base32 (`django_spicy_id.ENCODING_BASE_32`), zero-padded to a fixed 26-character suffix. `encoding` and `sep` are therefore **not** configurable.
+- **The separator** is always `_`, and is omitted entirely when the prefix is empty.
+- **The prefix** follows the TypeID rules: lowercase ASCII `[a-z_]`, at most 63 characters, starting and ending with a letter. It may be empty (e.g. `TypeIDField(primary_key=True)`), producing a bare 26-character suffix with no separator.
+- **The default value** is a UUIDv7 (time-ordered), generated by `django_spicy_id.uuid7()`. This uses the standard library's `uuid.uuid7()` on Python 3.14+, and a built-in RFC 9562 implementation on older versions.
+
+The library is validated against the spec's official [`valid`](https://github.com/jetify-com/typeid/blob/main/spec/valid.yml) and [`invalid`](https://github.com/jetify-com/typeid/blob/main/spec/invalid.yml) conformance vectors.
+
+The base32 encoding is also available to the other field types via `encoding=django_spicy_id.ENCODING_BASE_32`, though the result is only TypeID-compatible when used through `TypeIDField`.
 
 ### Registering URLs
 
@@ -248,6 +307,10 @@ You can avoid this situation by validating inputs first. See _Field Attributes_.
 
 A subclass of `ValueError`, raised by `.validate_string(strval)` when the provided string is invalid for the field's configuration.
 
+## API Reference
+
+Complete reference documentation for every public field, function, and error, generated from the library's docstrings, lives in [`docs/api.md`](docs/api.md).
+
 ## Tips and tricks
 
 ### Don't change field configuration
@@ -278,8 +341,9 @@ Equivalently, you can call the script directly:
 
 1. Increment `version` in `pyproject.toml` (patch by default).
 2. Stamp the pending changelog section (`## Current version ...`) in `CHANGELOG.md` with the new version and today's date, and open a fresh pending section for the next release.
-3. Run `pre-commit` over the changed files (re-staging anything it reformats).
-4. Create a commit named `vX.Y.Z` and a matching git tag.
+3. Refresh `uv.lock`, which records the project's own version.
+4. Run `pre-commit` over the changed files (re-staging anything it reformats).
+5. Create a commit named `vX.Y.Z` and a matching git tag.
 
 Nothing is pushed automatically. Review the commit and tag, then `git push && git push --tags` when you're happy.
 

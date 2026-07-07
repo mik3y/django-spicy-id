@@ -1,0 +1,43 @@
+# Configuration for the API reference rendered to docs/api.md.
+#
+# The reference is generated from the public docstrings by `scripts/gen_api_docs.py`
+# (run `make apidocs`), which is enforced up-to-date by a pre-commit hook. Docstrings
+# are the single source of truth; do not hand-edit docs/api.md.
+loaders:
+  - type: python
+    search_path: [src]
+    modules:
+      - django_spicy_id.fields
+      - django_spicy_id.utils
+      - django_spicy_id.contrib
+      - django_spicy_id.errors
+processors:
+  # Document only the public API. `type(obj).__name__ in ('Class', 'Function')` keeps
+  # real definitions while dropping re-exported imports (which appear as Indirections).
+  - type: filter
+    expression: >
+      type(obj).__name__ == 'Module'
+      or (type(obj).__name__ in ('Class', 'Function')
+          and name in {'TypeIDField', 'SpicyAutoField', 'SpicyBigAutoField',
+                       'SpicySmallAutoField', 'SpicyUUIDField', 'uuid7',
+                       'get_url_converter', 'monkey_patch_drf',
+                       'SpicyIdError', 'MalformedSpicyIdError'})
+  - type: smart
+  - type: crossref
+renderer:
+  type: markdown
+  render_toc: false
+  render_module_header: false
+  insert_header_anchors: false
+  descriptive_class_title: false
+  classdef_code_block: true
+  signature_with_def: true
+  # Render every symbol at h2, nested under the file's "# API Reference" title.
+  use_fixed_header_levels: true
+  header_level_by_type:
+    Module: 1
+    Class: 2
+    Function: 2
+    Method: 3
+    Variable: 3
+    Data: 3

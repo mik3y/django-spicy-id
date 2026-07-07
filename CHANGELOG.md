@@ -2,6 +2,19 @@
 
 ## Current version (in development)
 
+* Bugfix: `SpicyUUIDField` and `TypeIDField` now work in ModelForms (including the Django admin). Previously they rendered as a plain form `UUIDField`, which rejected the prefixed strings the model field itself produces.
+* Bugfix: User-supplied validators (the `validators=[...]` field argument) run again. The v1.1.0 `full_clean()` fix accidentally stopped them from running on string values (all values, in the case of `SpicyUUIDField`).
+* Bugfix: `SpicyUUIDField` and `TypeIDField` now raise a clear `ProgrammingError` when given a value of an unsupported type (e.g. an `int`). Previously such values could crash with an obscure `AttributeError`, or worse, be silently written to the database as `NULL` on backends with a native UUID column.
+* Bugfix: Zero-valued ids now round-trip on unpadded fields. Previously an unpadded field rendered the value `0` (e.g. the nil UUID) as a lone padding character, like `ex_0`, but then rejected that same string when parsing it back.
+* Bugfix: Saving a model whose `SpicyUUIDField`/`TypeIDField` holds a malformed id string now raises `ProgrammingError`, like the other write paths, instead of leaking the internal `MalformedSpicyIdError` from `save()`.
+* Feature: Added `TypeIDField`, a [TypeID](https://github.com/jetify-com/typeid)-compatible spicy id (UUIDv7 in Crockford base32 with a lowercase snake_case prefix) backed by a `UUIDField` column. Validated against the TypeID spec's official conformance vectors.
+* Feature: Added the `ENCODING_BASE_32` (Crockford base32) encoding and the `uuid7()` helper.
+* Deprecation: `SpicySmallAutoField` is deprecated and will be removed in v2.0.0. Use `SpicyAutoField` instead.
+* Deprecation: `SpicyUUIDField` is deprecated and will be removed in v2.0.0. Use `TypeIDField` instead.
+* Docs: Added a generated API reference (`docs/api.md`), rendered from the public docstrings with pydoc-markdown (`make apidocs`) and kept in sync by a pre-commit hook.
+* Internal: CI now actually runs the test suite against MySQL and PostgreSQL. The test settings previously hardcoded sqlite, so the database matrix silently tested sqlite everywhere; additionally, the tox invocation did not select the database factors, so the database drivers were never installed.
+* Internal: Replaced the unused `sphinx` dev dependency with `pydoc-markdown`, and added a `pre-commit` CI workflow that runs all hooks.
+
 ## v1.1.0 (2026-07-01)
 
 * Feature: Added `SpicyUUIDField`, a spicy id backed by a `UUIDField` column.
