@@ -35,7 +35,7 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
 - [API reference](#api-reference)
 - [Tips and tricks](#tips-and-tricks)
   - [Don't change field configuration](#dont-change-field-configuration)
-- [Releasing](#releasing)
+- [Maintainer notes](#maintainer-notes)
 - [Changelog](#changelog)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -263,30 +263,9 @@ Although the stored row IDs are never changed, any spicy IDs generated previousl
 
 For just one example, `user_10` would naturally refer to a different numeric row id if parsed as `hex` versus `base62` or `base58`. You should avoid changing the field configuration.
 
-## Releasing
+## Maintainer notes
 
-To cut a new release, run the `bump` tool:
-
-```
-make bump       # bumps the patch version (default)
-make bump minor # bumps the minor version
-make bump major # bumps the major version
-```
-
-Equivalently, you can call the script directly:
-
-```
-./scripts/bump.py [patch|minor|major]
-```
-
-`bump` will:
-
-1. Increment `version` in `pyproject.toml` (patch by default).
-2. Stamp the pending changelog section (`## Current version ...`) in `CHANGELOG.md` with the new version and today's date, and open a fresh pending section for the next release.
-3. Run `pre-commit` over the changed files (re-staging anything it reformats).
-4. Create a commit named `vX.Y.Z` and a matching git tag.
-
-Nothing is pushed automatically. Review the commit and tag, then `git push && git push --tags` when you're happy.
+Release instructions and other notes for maintainers live in [`docs/maintainer-notes.md`](docs/maintainer-notes.md).
 
 ## Changelog
 
