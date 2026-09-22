@@ -2,6 +2,26 @@
 
 A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" self-identifying string object IDs, like `user_1234`.
 
+```py
+# models.py
+from django_spicy_id import SpicyBigAutoField
+
+class Invoice(models.Model):
+    id = SpicyBigAutoField(primary_key=True, prefix='invoice', randomize=True)
+```
+
+```py
+>>> obj = Invoice.objects.create()
+>>> obj.id
+'invoice_7mTA3LAElL7'
+>>> Invoice.objects.get(pk='invoice_7mTA3LAElL7')
+<Invoice: Invoice object (invoice_7mTA3LAElL7)>
+```
+
+The underlying column is an ordinary integer column, so swapping a plain auto field for its spicy equivalent is a display-layer change: Django generates an `AlterField` migration, but no row data is rewritten. Ids come from the database on `INSERT` by default; `randomize=True`, used above, assigns a random id up front instead (see [Optional Parameters](#optional-parameters)).
+
+> Want globally-unique, UUID-backed ids that follow a cross-language standard instead? See our sister library [django-typeid](https://github.com/mik3y/django-typeid), which implements [TypeID](https://github.com/jetify-com/typeid) on top of Django's `UUIDField`. See [Related projects](#related-projects).
+
 **Status:** Stable. No warranty, see `LICENSE.txt`.
 
 [![PyPI version](https://badge.fury.io/py/django-spicy-id.svg)](https://badge.fury.io/py/django-spicy-id)
@@ -33,6 +53,7 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
     - [`django.db.utils.ProgrammingError`](#djangodbutilsprogrammingerror)
     - [`django_spicy_id.MalformedSpicyIdError`](#django_spicy_idmalformedspicyiderror)
 - [API reference](#api-reference)
+- [Related projects](#related-projects)
 - [Tips and tricks](#tips-and-tricks)
   - [Don't change field configuration](#dont-change-field-configuration)
 - [Maintainer notes](#maintainer-notes)
@@ -58,7 +79,7 @@ Although you should always treat these values as opaque and _never_ decode or pa
 
 - **`prefix`**: A fixed string value that will be the same for all IDs of this record type, forever.
 - **`separator`**: A configurable separator which, like `prefix`, is fixed forever; usually `_` (the default) or `-` (another popular choice).
-- **`encoded_value`**: The numeric portion of the id. This library supports using base 16 (hex) or base 62.
+- **`encoded_value`**: The numeric portion of the id. This library supports using base 16 (hex), base 58, or base 62.
 
 Importantly, the underlying database value is still stored and retrieved as a _numeric type_, just like an `AutoField`, `SmallAutoField`, or `BigAutoField`.
 
@@ -89,7 +110,11 @@ All database backends are tested with the latest versions of their drivers. SQLi
 ### Instructions
 
 ```
-pip install django_spicy_id
+### With pip
+pip install django-spicy-id
+
+### With uv
+uv add django-spicy-id
 ```
 
 ## Usage
@@ -100,7 +125,7 @@ Given the following example model:
 from django.db import models
 from django_spicy_id import SpicyBigAutoField
 
-class User(models.model):
+class User(models.Model):
     id = SpicyBigAutoField(primary_key=True, prefix='usr')
 ```
 
@@ -152,7 +177,7 @@ The auto field types (`SpicyAutoField`, `SpicyBigAutoField`, `SpicySmallAutoFiel
 
 ### Registering URLs
 
-When installing routes that must match a specific spicy id, you can use the `get_url_converter()` helper method to install a Django [custom path converter](https://docs.djangoproject.com/en/3.2/topics/http/urls/#registering-custom-path-converters).
+When installing routes that must match a specific spicy id, you can use the `get_url_converter()` helper method to install a Django [custom path converter](https://docs.djangoproject.com/en/5.2/topics/http/urls/#registering-custom-path-converters).
 
 Using this method will ensure that _only_ valid spicy ID strings for that field will be presented to your view.
 
@@ -160,7 +185,7 @@ Example:
 
 ```py
 # models.py
-class User(models.model):
+class User(models.Model):
     id = SpicyBigAutoField(primary_key=True, prefix='usr')
 ```
 
@@ -206,7 +231,7 @@ The following attributes are available on the field once constructed
 
 #### `.validate_string(strval)`
 
-Checks whether `strval` is a legal value for the field, throwing `django_spicy_id.errors.MalformedSpicyIdError` if not.
+Checks whether `strval` is a legal value for the field, throwing `django_spicy_id.MalformedSpicyIdError` if not.
 
 #### `.re`
 
@@ -224,7 +249,7 @@ These utility methods are provided on the top-level `django_spicy_id` module.
 
 #### `get_url_converter(model_class, field_name)`
 
-Returns a Django [custom path converter](https://docs.djangoproject.com/en/3.2/topics/http/urls/#registering-custom-path-converters) for `field_name` on `model_class`.
+Returns a Django [custom path converter](https://docs.djangoproject.com/en/5.2/topics/http/urls/#registering-custom-path-converters) for `field_name` on `model_class`.
 
 See [Registering URLs](#registering-urls) for example usage.
 
@@ -247,11 +272,27 @@ You can avoid this situation by validating inputs first. See _Field Attributes_.
 
 #### `django_spicy_id.MalformedSpicyIdError`
 
-A subclass of `ValueError`, raised by `.validate_string(strval)` when the provided string is invalid for the field's configuration.
+A subclass of `ValueError`, raised by `.validate_string(strval)` when the provided string is invalid for the field's configuration. Its base class, `django_spicy_id.SpicyIdError`, is the root of the library's error hierarchy.
 
 ## API reference
 
 Complete reference documentation for every public field, function, and error, generated from the library's docstrings, lives in [`docs/api.md`](docs/api.md).
+
+## Related projects
+
+If you want ids that are globally unique and interoperable with other languages and services, see [django-typeid](https://github.com/mik3y/django-typeid). It implements the [TypeID](https://github.com/jetify-com/typeid) spec: a UUIDv7 rendered in Crockford base32 behind a type prefix, like `user_01h455vb4pex5vsknk084sn02q`, stored in a native `UUIDField` column.
+
+The two libraries solve similar problems with different tradeoffs:
+
+| | `django-spicy-id` | `django-typeid` |
+| --- | --- | --- |
+| Backing column | `AutoField` / `BigAutoField` | `UUIDField` (128-bit) |
+| Value generated by | the database, on insert | your app, before insert |
+| Format | configurable encoding, separator, padding | fixed by the TypeID spec |
+| Interoperable with other TypeID implementations | no | yes |
+| Ids reveal row counts or insert order | yes, unless `randomize` is used | no |
+
+They can be used side by side in the same project.
 
 ## Tips and tricks
 
