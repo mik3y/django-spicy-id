@@ -32,6 +32,7 @@ A drop-in replacement for Django's `AutoField` that gives you "Stripe-style" sel
   - [Errors](#errors)
     - [`django.db.utils.ProgrammingError`](#djangodbutilsprogrammingerror)
     - [`django_spicy_id.MalformedSpicyIdError`](#django_spicy_idmalformedspicyiderror)
+- [API reference](#api-reference)
 - [Tips and tricks](#tips-and-tricks)
   - [Don't change field configuration](#dont-change-field-configuration)
 - [Releasing](#releasing)
@@ -247,6 +248,10 @@ You can avoid this situation by validating inputs first. See _Field Attributes_.
 #### `django_spicy_id.MalformedSpicyIdError`
 
 A subclass of `ValueError`, raised by `.validate_string(strval)` when the provided string is invalid for the field's configuration.
+
+## API reference
+
+Complete reference documentation for every public field, function, and error, generated from the library's docstrings, lives in [`docs/api.md`](docs/api.md).
 
 ## Tips and tricks
 

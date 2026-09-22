@@ -2,6 +2,8 @@
 
 ## Current version (in development)
 
+* Docs: Added an [API reference](docs/api.md) generated from the library's docstrings.
+
 ## v1.1.0 (2026-07-01)
 
 * Feature: Added `SpicyUUIDField`, a spicy id backed by a `UUIDField` column.
