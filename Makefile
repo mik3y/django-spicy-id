@@ -1,6 +1,10 @@
 toc:
 	doctoc --notitle --github README.md
 
+# Regenerate docs/api.md from the public docstrings.
+apidocs:
+	python scripts/gen_api_docs.py
+
 # Cut a release: bump version, stamp the changelog, commit and tag.
 # Usage: `make bump [patch|minor|major]` (default: patch).
 bump:
@@ -9,4 +13,4 @@ bump:
 patch minor major:
 	@:
 
-.PHONY: toc bump patch minor major
+.PHONY: toc apidocs bump patch minor major

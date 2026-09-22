@@ -8,3 +8,13 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: api-docs
+        name: Sync docs/api.md from docstrings
+        entry: python scripts/gen_api_docs.py --check
+        language: python
+        additional_dependencies: ["pydoc-markdown>=4.8,<5"]
+        files: ^(src/django_spicy_id/.*\.py|docs/api\.md|pydoc-markdown\.yml|scripts/gen_api_docs\.py)$
+        pass_filenames: false

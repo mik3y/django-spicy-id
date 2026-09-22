@@ -232,26 +232,59 @@ class BaseSpicyAutoField(models.Field):
             del kwargs["default"]
         return name, path, args, kwargs
 
+
 class SpicyBigAutoField(BaseSpicyAutoField, models.BigAutoField):
-    """A Spicy ID field that is backed by a standard 64-bit Django BigAutoField."""
+    """A spicy id backed by a 64-bit `BigAutoField` column.
+
+    Behaves like a normal `BigAutoField`, the stored value is a database-generated
+    integer, but it is displayed and queried as a prefixed string such as
+    `user_8M0kX`.
+
+    Arguments:
+        prefix: The type prefix shown on every id, e.g. `user`. Required.
+        sep: The separator between the prefix and the encoded value. Defaults to `_`.
+        encoding: How the integer value is encoded. One of `ENCODING_BASE_62`
+            (default), `ENCODING_BASE_58`, or `ENCODING_HEX`.
+        pad: If `True`, zero-pad the encoded value so all ids are the same length.
+            Defaults to `False`.
+        randomize: If `True`, assign a random (rather than sequential) value on
+            insert, using `secrets`. Defaults to `False`.
+    """
 
     NUM_BITS = 64
 
 
 class SpicyAutoField(BaseSpicyAutoField, models.AutoField):
-    """A Spicy ID field that is backed by a standard 32-bit Django AutoField."""
+    """A spicy id backed by a 32-bit `AutoField` column.
+
+    Takes the same arguments as `SpicyBigAutoField`.
+    """
 
     NUM_BITS = 32
 
 
 class SpicySmallAutoField(BaseSpicyAutoField, models.SmallAutoField):
-    """A Spicy ID field that is backed by a standard 16-bit Django SmallAutoField."""
+    """A spicy id backed by a 16-bit `SmallAutoField` column.
+
+    Takes the same arguments as `SpicyBigAutoField`.
+    """
 
     NUM_BITS = 16
 
 
 class SpicyUUIDField(models.UUIDField):
-    """A UUIDField that is rendered as a prefixed, encoded string."""
+    """A spicy id backed by a 128-bit `UUIDField` column.
+
+    Unlike the auto fields, the value is not database-generated; a random
+    `uuid.uuid4` is assigned to new rows by default. It is displayed and queried
+    as a prefixed, encoded string.
+
+    Arguments:
+        prefix: The type prefix shown on every id, e.g. `user`. Required.
+        sep: The separator between the prefix and the encoded value. Defaults to `_`.
+        encoding: How the UUID is encoded. One of `ENCODING_BASE_62` (default),
+            `ENCODING_BASE_58`, or `ENCODING_HEX`.
+    """
 
     def __init__(
         self,
