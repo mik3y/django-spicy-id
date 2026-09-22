@@ -2,6 +2,8 @@
 
 ## Current version (in development)
 
+## v1.2.0 (2026-09-22)
+
 * Docs: Added an [API reference](docs/api.md) generated from the library's docstrings.
 * Docs: `SpicyUUIDField` is now documented as legacy; new projects wanting UUID-backed typed ids should use [django-typeid](https://github.com/mik3y/django-typeid).
 
