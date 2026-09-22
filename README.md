@@ -149,6 +149,7 @@ True
 - `SpicyAutoField`: A spicy id which is backed by a `AutoField` (i.e. 32-bit int) column.
 - `SpicySmallAutoField`: A spicy id which is backed by a `SmallAutoField` (i.e. 16-bit int) column.
 - `SpicyUUIDField`: A spicy id which is backed by a `UUIDField` (i.e. 128-bit) column. Unlike the auto fields, values are not database-generated; by default a random UUID (`uuid.uuid4`) is assigned to new rows.
+  - **Legacy:** This field predates, and is not compatible with, the [TypeID](https://github.com/jetify-com/typeid) standard. New projects that want UUID-backed typed ids should use [django-typeid](https://github.com/mik3y/django-typeid) instead; see [Related projects](#related-projects). `SpicyUUIDField` remains supported for existing users.
 
 ### Required Parameters
 

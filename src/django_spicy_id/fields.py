@@ -275,6 +275,10 @@ class SpicySmallAutoField(BaseSpicyAutoField, models.SmallAutoField):
 class SpicyUUIDField(models.UUIDField):
     """A spicy id backed by a 128-bit `UUIDField` column.
 
+    **Legacy:** new projects that want UUID-backed typed ids should prefer
+    `django-typeid` (https://github.com/mik3y/django-typeid), which implements the
+    cross-language TypeID standard.
+
     Unlike the auto fields, the value is not database-generated; a random
     `uuid.uuid4` is assigned to new rows by default. It is displayed and queried
     as a prefixed, encoded string.
